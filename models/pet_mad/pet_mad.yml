@@ -1,0 +1,85 @@
+model_name: PET-MAD
+model_key: pet_mad
+model_version: 1.1.0
+date_added: "2025-05-28"
+date_published: "2025-03-18"
+authors:
+  - name: Arslan Mazitov
+    affiliation: COSMO, EPFL
+    email: arslan.mazitov@epfl.ch
+    corresponding: true
+  - name: Filippo Bigi
+    affiliation: COSMO, EPFL
+    email: filippo.bigi@epf.ch
+  - name: Matthias Kellner
+    affiliation: COSMO, EPFL
+    email: matthias.kellner@epfl.ch
+  - name: Paolo Pegolo
+    affiliation: COSMO, EPFL
+    email: paolo.pegolo@epfl.ch
+  - name: Davide Tisi
+    affiliation: COSMO, EPFL
+    email: davide.tisi.@epfl.ch
+  - name: Guillaume Fraux
+    affiliation: COSMO, EPFL
+    email: guillaume.fraux@epf.ch
+  - name: Sergey Pozdnyakov
+    affiliation: COSMO, EPFL
+    email: sergey.pozdnyakov@epfl.ch
+  - name: Philip Loche
+    affiliation: COSMO, EPFL
+    email: philip.loche@epfl.ch
+  - name: Michele Ceriotti
+    affiliation: COSMO, EPFL
+    email: michele.ceriotti@epfl.ch
+    corresponding: true
+repo: https://github.com/lab-cosmo/pet-mad
+preprint: https://arxiv.org/abs/2503.14118
+checkpoint_url: https://huggingface.co/lab-cosmo/pet-mad/resolve/b0234f3/models/pet-mad-latest.ckpt
+
+openness: OSOD
+train_task: S2EF
+test_task: S2EF
+targets: EF_G
+model_type: Transformer
+model_params: 4_000_000
+trained_for_benchmark: false
+n_estimators: 1
+
+license:
+  code: BSD-3-Clause
+  code_url: https://github.com/lab-cosmo/pet-mad/blob/97b5ac301be3c5d7065af8f5cf40fc76b1825b6f/LICENSE
+
+hyperparams:
+  cutoff: 4.5
+  cutoff_width: 0.2
+  d_pet: 256
+  d_head: 128
+  d_feedforward: 512
+  num_heads: 8
+  num_attention_layers: 2
+  num_gnn_layers: 2
+  optimzer: Adam
+  batch_size: 22
+  learning_rate: 1e-4
+  scheduler_patience: 250
+
+training_cost:
+  Nvidia H100 GPUs: { amount: 4, hours: 20 }
+
+requirements:
+  metatrain: 2025.6
+  huggingface_hub: 0.32.2
+  platformdirs: 4.3.8
+
+training_set: [MAD]
+
+metrics:
+  phonons:
+    kappa_103:
+      pred_file: models/pet_mad/2025-05-24-kappa-103-FIRE-dist%3D0.01-fmax%3D0.0001-symprec%3D1e-05.json.gz
+      pred_file_url: https://figshare.com/files/54858899
+  discovery:
+    pred_file: models/pet_mad/2025-05-24-pet_mad-wbm-IS2RE.csv.gz
+    pred_file_url: https://figshare.com/files/54859376
+    pred_col: e_form_per_atom_pet_mad

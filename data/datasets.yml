@@ -579,3 +579,55 @@ MatPES r2SCAN:
   description: |
     A dataset containing 387,897 structures from ~300K molecular dynamics simulations,
     providing potential energy surfaces that are valuable for training ML interatomic potentials.
+
+MAD:
+  name: Massive Atomistic Diversity
+  download_url: ???
+  n_structures: 95_595
+  open: true
+  static: true
+  optimade_api: null
+  native_api: null
+  date_created: 2025-03-18
+  doi: https://doi.org/10.48550/arxiv.2503.14118
+  license: BSD-3-Clause
+  method: DFT
+  params:
+    code: Quantum ESPRESSO
+    code_version: 7.2
+    functional: PBEsol
+    pseudopotentials: SSSP v1.2
+  created_by:
+    - name: Arslan Mazitov
+      affiliation: COSMO, EPFL
+      email: arslan.mazitov@epfl.ch
+      corresponding: true
+    - name: Filippo Bigi
+      affiliation: COSMO, EPFL
+      email: filippo.bigi@epf.ch
+    - name: Matthias Kellner
+      affiliation: COSMO, EPFL
+      email: matthias.kellner@epfl.ch
+    - name: Paolo Pegolo
+      affiliation: COSMO, EPFL
+      email: paolo.pegolo@epfl.ch
+    - name: Davide Tisi
+      affiliation: COSMO, EPFL
+      email: davide.tisi.@epfl.ch
+    - name: Guillaume Fraux
+      affiliation: COSMO, EPFL
+      email: guillaume.fraux@epf.ch
+    - name: Sergey Pozdnyakov
+      affiliation: COSMO, EPFL
+      email: sergey.pozdnyakov@epfl.ch
+    - name: Philip Loche
+      affiliation: COSMO, EPFL
+      email: philip.loche@epfl.ch
+    - name: Michele Ceriotti
+      affiliation: COSMO, EPFL
+      email: michele.ceriotti@epfl.ch
+      corresponding: true
+  description: |
+    A dataset consisting of 8 different classes of atomic structures, with a total of
+    85 elements (atomic numbers ranging from 1 to 86, except Astatine),
+    calculated using consistent DFT settings.
