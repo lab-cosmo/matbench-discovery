@@ -24,8 +24,8 @@ trained_by:
 
 repo: https://github.com/atomicarchitects/nequix
 url: https://github.com/atomicarchitects/nequix
-doi: https://teddykoker.com/docs/nequix.pdf # TODO
-paper: https://teddykoker.com/docs/nequix.pdf
+doi: https://doi.org/10.48550/arXiv.2508.16067
+paper: https://arxiv.org/abs/2508.16067
 pr_url: https://github.com/janosh/matbench-discovery/pull/276
 checkpoint_url: https://figshare.com/files/57245573
 
@@ -82,7 +82,7 @@ training_cost:
 training_set: [MPtrj]
 
 notes:
-  description: Nequix is a simplified version of NequIP with added RMSnorm, implemented in JAX, and trained with Muon optimizer.
+  Description: Nequix is a simplified version of NequIP with added RMSnorm, implemented in JAX, and trained with Muon optimizer.
 
 requirements:
   jax: 0.6.2

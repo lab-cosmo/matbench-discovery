@@ -1,12 +1,13 @@
 <script lang="ts">
+  import { calc_cell_color } from '$lib/metrics'
+  import type { CellSnippetArgs, CellVal, Label, RowData } from '$lib/types'
   import { format_num } from 'matterviz'
   import type { Snippet } from 'svelte'
   import { tooltip } from 'svelte-multiselect/attachments'
   import { flip } from 'svelte/animate'
-  import { calc_cell_color } from './metrics'
-  import type { CellSnippetArgs, CellVal, Label, RowData } from './types'
+  import type { HTMLAttributes } from 'svelte/elements'
 
-  interface Props {
+  interface Props extends HTMLAttributes<HTMLDivElement> {
     data: RowData[]
     columns?: Label[]
     sort_hint?: string
@@ -19,7 +20,7 @@
     default_num_format?: string
     show_heatmap?: boolean
     heatmap_class?: string
-    [key: string]: unknown
+    onrowdblclick?: (event: MouseEvent, row: RowData) => void
   }
   let {
     data,
@@ -34,6 +35,7 @@
     default_num_format = `.3`,
     show_heatmap = $bindable(true),
     heatmap_class = `heatmap`,
+    onrowdblclick,
     ...rest
   }: Props = $props()
 
@@ -113,7 +115,7 @@
         }
       }
 
-      return val1 < val2 ? -1 * modifier : 1 * modifier
+      return (val1 ?? 0) < (val2 ?? 0) ? -1 * modifier : 1 * modifier
     })
   })
 
@@ -134,19 +136,20 @@
   }
 
   function calc_color(val: CellVal, col: Label) {
-    // Skip color calculation for null values or if color_scale is null
+    // Skip color calculation for null values, NaN, or if color_scale is null
     if (
       val === null ||
       val === undefined ||
       col.color_scale === null ||
       typeof val !== `number` ||
+      Number.isNaN(val) ||
       !show_heatmap // Disable heatmap colors if show_heatmap is false
     ) return { bg: null, text: null }
 
     const col_id = get_col_id(col)
     const numeric_vals = sorted_data
       .map((row) => row[col_id])
-      .filter((val) => typeof val === `number`) // Type guard to ensure we only get numbers
+      .filter((val) => typeof val === `number` && !Number.isNaN(val)) // Type guard to ensure we only get valid numbers
 
     // Using the shared helper function for color calculation
     return calc_cell_color(
@@ -179,7 +182,7 @@
   }
 </script>
 
-<div class="table-container" {@attach tooltip()} {...rest}>
+<div {@attach tooltip()} {...rest} class="table-container {rest.class ?? ``}">
   {#if (sort_state && sort_hint) || controls}
     <div class="table-header">
       {#if sort_state && sort_hint}
@@ -230,7 +233,12 @@
     </thead>
     <tbody>
       {#each sorted_data as row (JSON.stringify(row))}
-        <tr animate:flip={{ duration: 500 }} style={row.style}>
+        <tr
+          animate:flip={{ duration: 500 }}
+          style={row.style}
+          class={String(row.class) ?? null}
+          ondblclick={onrowdblclick ? (event) => onrowdblclick(event, row) : undefined}
+        >
           {#each visible_columns as col (col.label + col.group)}
             {@const val = row[get_col_id(col)]}
             {@const color = calc_color(val, col)}
@@ -246,10 +254,12 @@
                 {@render special_cells[col.label]({ row, col, val })}
               {:else if cell}
                 {@render cell({ row, col, val })}
-              {:else if typeof val === `number`}
+              {:else if typeof val === `number` && !Number.isNaN(val)}
                 {format_num(val, col.format ?? default_num_format)}
-              {:else if val === undefined || val === null}
-                n/a
+              {:else if val === undefined || val === null || Number.isNaN(val)}
+                <span {@attach tooltip({ content: `Not available` })}>
+                  n/a
+                </span>
               {:else}
                 {@html val}
               {/if}
@@ -263,22 +273,21 @@
 
 <style>
   .table-container {
-    overflow-x: auto;
     display: grid;
     grid-template-columns: 1fr min-content 1fr;
     font-size: var(--heatmap-font-size, 0.9em);
-    /* https://stackoverflow.com/a/38994837 */
-    scrollbar-width: none; /* Firefox */
-    max-width: 90vw;
   }
   .table-container::-webkit-scrollbar {
     display: none; /* Safari and Chrome */
   }
   table {
-    overflow: hidden;
+    overflow-x: auto;
+    overflow-y: hidden;
+    /* https://stackoverflow.com/a/38994837 */
+    scrollbar-width: none; /* Firefox */
+    max-width: 90vw;
   }
-  th,
-  td {
+  th, td {
     padding: var(--heatmap-cell-padding, 1pt 5pt);
     text-align: var(--heatmap-text-align, left);
     border: var(--heatmap-cell-border, none);
@@ -299,9 +308,6 @@
     left: 0;
     background: var(--heatmap-header-bg, var(--page-bg));
     z-index: 1;
-  }
-  tr:nth-child(odd) td.sticky-col {
-    background: var(--heatmap-row-odd-bg, var(--table-odd));
   }
   tbody tr:hover {
     filter: var(--heatmap-row-hover-filter, brightness(1.1));
@@ -330,5 +336,11 @@
   }
   .not-sortable {
     cursor: default;
+  }
+  tr.highlight {
+    background-color: var(--nav-bg) !important;
+  }
+  tr.highlight, tr.highlight :global(a) {
+    color: var(--highlight) !important;
   }
 </style>

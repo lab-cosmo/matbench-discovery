@@ -1,13 +1,11 @@
 <script lang="ts">
-  import { Icon } from '$lib'
+  import { Icon, type Label } from '$lib'
   import { click_outside, tooltip } from 'svelte-multiselect/attachments'
-  import type { Label } from './types'
 
   interface Props {
     columns: Label[]
     column_panel_open?: boolean
   }
-
   let { columns = $bindable([]), column_panel_open = $bindable(false) }: Props =
     $props()
 
