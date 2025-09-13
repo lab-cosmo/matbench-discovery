@@ -1,0 +1,145 @@
+model_name: PET
+model_key: pet
+model_version: 1.1.0
+date_added: "2025-05-28"
+date_published: "2025-03-18"
+authors:
+  - name: Arslan Mazitov
+    affiliation: COSMO, EPFL
+    email: arslan.mazitov@epfl.ch
+    corresponding: true
+  - name: Filippo Bigi
+    affiliation: COSMO, EPFL
+    email: filippo.bigi@epf.ch
+  - name: Matthias Kellner
+    affiliation: COSMO, EPFL
+    email: matthias.kellner@epfl.ch
+  - name: Paolo Pegolo
+    affiliation: COSMO, EPFL
+    email: paolo.pegolo@epfl.ch
+  - name: Davide Tisi
+    affiliation: COSMO, EPFL
+    email: davide.tisi.@epfl.ch
+  - name: Guillaume Fraux
+    affiliation: COSMO, EPFL
+    email: guillaume.fraux@epf.ch
+  - name: Sergey Pozdnyakov
+    affiliation: COSMO, EPFL
+    email: sergey.pozdnyakov@epfl.ch
+  - name: Philip Loche
+    affiliation: COSMO, EPFL
+    email: philip.loche@epfl.ch
+  - name: Michele Ceriotti
+    affiliation: COSMO, EPFL
+    email: michele.ceriotti@epfl.ch
+    corresponding: true
+repo: https://github.com/lab-cosmo/pet-mad
+preprint: https://arxiv.org/abs/2503.14118
+checkpoint_url: https://huggingface.co/lab-cosmo/pet-mad/resolve/b0234f3/models/pet-mad-latest.ckpt
+
+openness: OSOD
+train_task: S2EF
+test_task: S2EF
+targets: EF_G
+model_type: Transformer
+model_params: 4_000_000
+trained_for_benchmark: false
+n_estimators: 1
+
+license:
+  code: BSD-3-Clause
+  code_url: https://github.com/lab-cosmo/pet-mad/blob/97b5ac301be3c5d7065af8f5cf40fc76b1825b6f/LICENSE
+
+hyperparams:
+  cutoff: 4.5
+  cutoff_width: 0.2
+  d_pet: 256
+  d_head: 128
+  d_feedforward: 512
+  num_heads: 8
+  num_attention_layers: 2
+  num_gnn_layers: 2
+  optimzer: Adam
+  batch_size: 22
+  learning_rate: 1e-4
+  scheduler_patience: 250
+
+training_cost:
+  Nvidia H100 GPUs: {amount: 4, hours: 20}
+
+requirements:
+  metatrain: 2025.6
+  huggingface_hub: 0.32.2
+  platformdirs: 4.3.8
+
+training_set: [MPtrj]
+
+metrics:
+  phonons:
+    kappa_103:
+      # pred_file: models/pet/kappa_results/conductivity.json.gz
+      pred_file: models/pet/metrics.json.gz
+      # pred_file: models/pet/metrics_with_script_like_esen.json.gz
+      # pred_file_url: https://figshare.com/files/53461061
+      κ_SRME: 1.1366
+      κ_SRE: 1.017
+  geo_opt:
+    pred_file: models/pet/pet/pet-wbm-IS2RE-FIRE.jsonl.gz
+  discovery:
+    pred_file: models/pet/pet/pet.csv.gz
+    # pred_file_url: https://figshare.com/files/54859376
+    pred_col: e_form_per_atom_pet
+    full_test_set:
+      F1: 0.87 # fraction
+      DAF: 5.235 # dimensionless
+      Precision: 0.898 # fraction
+      Recall: 0.843 # fraction
+      Accuracy: 0.957 # fraction
+      TPR: 0.843 # fraction
+      FPR: 0.02 # fraction
+      TNR: 0.98 # fraction
+      FNR: 0.157 # fraction
+      TP: 37165.0 # count
+      FP: 4210.0 # count
+      TN: 208661.0 # count
+      FN: 6927.0 # count
+      MAE: 0.023 # eV/atom
+      RMSE: 0.073 # eV/atom
+      R2: 0.833 # dimensionless
+      missing_preds: 2 # count
+    unique_prototypes:
+      F1: 0.893 # fraction
+      DAF: 6.015 # dimensionless
+      Precision: 0.919 # fraction
+      Recall: 0.868 # fraction
+      Accuracy: 0.968 # fraction
+      TPR: 0.868 # fraction
+      FPR: 0.014 # fraction
+      TNR: 0.986 # fraction
+      FNR: 0.132 # fraction
+      TP: 28976.0 # count
+      FP: 2538.0 # count
+      TN: 179576.0 # count
+      FN: 4398.0 # count
+      MAE: 0.023 # eV/atom
+      RMSE: 0.074 # eV/atom
+      R2: 0.836 # dimensionless
+      missing_preds: 0 # count
+    most_stable_10k:
+      F1: 0.985 # fraction
+      DAF: 6.351 # dimensionless
+      Precision: 0.971 # fraction
+      Recall: 1.0 # fraction
+      Accuracy: 0.971 # fraction
+      TPR: 1.0 # fraction
+      FPR: 1.0 # fraction
+      TNR: 0.0 # fraction
+      FNR: 0.0 # fraction
+      TP: 9709.0 # count
+      FP: 291.0 # count
+      TN: 0.0 # count
+      FN: 0.0 # count
+      MAE: 0.018 # eV/atom
+      RMSE: 0.066 # eV/atom
+      R2: 0.904 # dimensionless
+      missing_preds: 0 # count

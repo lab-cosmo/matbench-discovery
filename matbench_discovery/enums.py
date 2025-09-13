@@ -267,10 +267,10 @@ class Model(Files, base_dir=f"{ROOT}/models"):
 
     alchembert = auto(), "alchembert/alchembert.yml"
 
-    # AlphaNet: https://arxiv.org/abs/2501.07155
-    alphanet_v1_oma = auto(), "alphanet/alphanet-v1-oma.yml"
+    # # AlphaNet: https://arxiv.org/abs/2501.07155
+    # alphanet_v1_oma = auto(), "alphanet/alphanet-v1-oma.yml"
     # alignn with global pooling: https://arxiv.org/abs/2106.01829
-    alignn = auto(), "alignn/alignn.yml"
+    # alignn = auto(), "alignn/alignn.yml"
 
     # alignn-ff with local pooling: https://arxiv.org/abs/2209.05554
     # Commented out because the model could not be evaluated due to OOM errors
@@ -278,86 +278,89 @@ class Model(Files, base_dir=f"{ROOT}/models"):
     # alignn_ff = auto(), "alignn/alignn-ff.yml"
 
     # BOWSR optimizer coupled with original megnet
-    bowsr_megnet = auto(), "bowsr/bowsr.yml"
+    # bowsr_megnet = auto(), "bowsr/bowsr.yml"
 
     # default CHGNet model from publication with 400,438 params
-    chgnet_030 = auto(), "chgnet/chgnet-0.3.0.yml"
+    # chgnet_030 = auto(), "chgnet/chgnet-0.3.0.yml"
 
     # CGCNN 10-member ensemble
-    cgcnn = auto(), "cgcnn/cgcnn.yml"
+    # cgcnn = auto(), "cgcnn/cgcnn.yml"
 
     # CGCNN 10-member ensemble with 5-fold training set perturbations
-    cgcnn_p = auto(), "cgcnn/cgcnn+p.yml"
+    # cgcnn_p = auto(), "cgcnn/cgcnn+p.yml"
 
     # DeePMD-DPA3 models: https://arxiv.org/abs/2506.01686
-    dpa_3_1_mptrj = auto(), "deepmd/dpa-3.1-mptrj.yml"
-    dpa_3_1_3m_ft = auto(), "deepmd/dpa-3.1-3m-ft.yml"
+    # dpa_3_1_mptrj = auto(), "deepmd/dpa-3.1-mptrj.yml"
+    # dpa_3_1_3m_ft = auto(), "deepmd/dpa-3.1-3m-ft.yml"
     # dpa3_v2_mptrj = auto(), "deepmd/dpa3-v2-mptrj.yml"
     # dpa3_v2_openlam = auto(), "deepmd/dpa3-v2-openlam.yml"
     # dpa3_v1_mptrj = auto(), "deepmd/dpa3-v1-mptrj.yml"
     # dpa3_v1_openlam = auto(), "deepmd/dpa3-v1-openlam.yml"
 
     # FAIR-Chem
-    eqv2_s_dens = auto(), "eqV2/eqV2-s-dens-mp.yml"
-    eqv2_m = auto(), "eqV2/eqV2-m-omat-salex-mp.yml"
-    esen_30m_mp = auto(), "eSEN/eSEN-30m-mp.yml"
-    esen_30m_oam = auto(), "eSEN/eSEN-30m-oam.yml"
+    # eqv2_s_dens = auto(), "eqV2/eqV2-s-dens-mp.yml"
+    # eqv2_m = auto(), "eqV2/eqV2-m-omat-salex-mp.yml"
+    # esen_30m_mp = auto(), "eSEN/eSEN-30m-mp.yml"
+    # esen_30m_oam = auto(), "eSEN/eSEN-30m-oam.yml"
 
     # eqnorm
-    eqnorm_mptrj = auto(), "eqnorm/eqnorm-mptrj.yml"
+    # eqnorm_mptrj = auto(), "eqnorm/eqnorm-mptrj.yml"
 
     # HIENet
-    hienet = auto(), "hienet/hienet.yml"
+    # hienet = auto(), "hienet/hienet.yml"
 
     # GRACE: https://arxiv.org/abs/2311.16326v2
-    grace_2l_mptrj = auto(), "grace/grace-2l-mptrj.yml"
-    grace_2l_oam = auto(), "grace/grace-2l-oam.yml"
-    grace_1l_oam = auto(), "grace/grace-1l-oam.yml"
+    # grace_2l_mptrj = auto(), "grace/grace-2l-mptrj.yml"
+    # grace_2l_oam = auto(), "grace/grace-2l-oam.yml"
+    # grace_1l_oam = auto(), "grace/grace-1l-oam.yml"
 
     # GNoME - Nequip architecture trained on Google's proprietary data. Weights
     # are not publicly available and so these results cannot be reproduced.
-    gnome = auto(), "gnome/gnome.yml"
+    # gnome = auto(), "gnome/gnome.yml"
 
     # original M3GNet straight from publication, not re-trained
-    m3gnet_ms = auto(), "m3gnet/m3gnet.yml"
+    # m3gnet_ms = auto(), "m3gnet/m3gnet.yml"
     # m3gnet_direct = auto(), "M3GNet DIRECT"
     # m3gnet_ms = auto(), "M3GNet MS"
 
     # MACE-MP-0 medium as published in https://arxiv.org/abs/2401.00096 trained on MPtrj
-    mace_mp_0 = auto(), "mace/mace-mp-0.yml"
-    mace_mpa_0 = auto(), "mace/mace-mpa-0.yml"  # trained on MPtrj and Alexandria
+    # mace_mp_0 = auto(), "mace/mace-mp-0.yml"
+    # mace_mpa_0 = auto(), "mace/mace-mpa-0.yml"  # trained on MPtrj and Alexandria
 
     # MatRIS-v0.5.0-MPtrj
-    matris_v050_mptrj = auto(), "matris/matris-v050-mptrj.yml"
+    # matris_v050_mptrj = auto(), "matris/matris-v050-mptrj.yml"
 
     # MatterSim - M3gNet architecture trained on propertary MSFT data. Weights
     # are open-sourced.
-    mattersim_v1_5m = auto(), "mattersim/mattersim-v1-5M.yml"
+    # mattersim_v1_5m = auto(), "mattersim/mattersim-v1-5M.yml"
 
     # original MEGNet straight from publication, not re-trained
-    megnet = auto(), "megnet/megnet.yml"
+    # megnet = auto(), "megnet/megnet.yml"
 
     # ORB
-    orb_v2 = auto(), "orb/orb-v2.yml"
-    orb_v2_mptrj = auto(), "orb/orb-v2-mptrj.yml"
-    orb_v3 = auto(), "orb/orb-v3.yml"
+    # orb_v2 = auto(), "orb/orb-v2.yml"
+    # orb_v2_mptrj = auto(), "orb/orb-v2-mptrj.yml"
+    # orb_v3 = auto(), "orb/orb-v3.yml"
 
     # SevenNet trained on MPtrj
     # sevennet_0 = auto(), "sevennet/sevennet-0.yml"
-    sevennet_l3i5 = auto(), "sevennet/sevennet-l3i5.yml"
-    sevennet_mf_ompa = auto(), "sevennet/sevennet-mf-ompa.yml"
+    # sevennet_l3i5 = auto(), "sevennet/sevennet-l3i5.yml"
+    # sevennet_mf_ompa = auto(), "sevennet/sevennet-mf-ompa.yml"
 
     # Magpie composition+Voronoi tessellation structure features + sklearn random forest
-    voronoi_rf = auto(), "voronoi_rf/voronoi-rf.yml"
+    # voronoi_rf = auto(), "voronoi_rf/voronoi-rf.yml"
 
     # wrenformer 10-member ensemble
-    wrenformer = auto(), "wrenformer/wrenformer.yml"
+    # wrenformer = auto(), "wrenformer/wrenformer.yml"
 
     # ESNet model
-    esnet = auto(), "esnet/esnet.yml"
+    # esnet = auto(), "esnet/esnet.yml"
 
     # Nequix model
-    nequix_mp_1 = auto(), "nequix/nequix-mp-1.yml"
+    # nequix_mp_1 = auto(), "nequix/nequix-mp-1.yml"
+
+    # PET
+    pet = auto(), "pet/pet.yml"
 
     # --- Model Combos
     # # CHGNet-relaxed structures fed into MEGNet for formation energy prediction
