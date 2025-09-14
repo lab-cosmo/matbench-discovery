@@ -68,7 +68,7 @@ def process_results(path: str) -> None:
         tot_df.sort_values("id_tuple").reset_index(drop=True).drop(columns=["id_tuple"])
     )
 
-    df_out = tot_df.set_index("material_id")  # .drop(columns=[struct_col])
+    df_out = tot_df.set_index("material_id", drop=False)  # .drop(columns=[struct_col])
 
     # Create ComputedStructureEntry objects with GRACE energies and structures
     wbm_cse_path = DataFiles.wbm_computed_structure_entries.path
@@ -83,7 +83,7 @@ def process_results(path: str) -> None:
     # corrections applied below are structure-dependent (for oxides and sulfides)
     cse: ComputedStructureEntry
     for row in tqdm(df_out.itertuples(), total=len(df_out), desc="ML energies to CSEs"):
-        mat_id, struct_dict, pet_energy, *_ = row
+        mat_id, _, struct_dict, pet_energy, *_ = row
         mlip_struct = Structure.from_dict(struct_dict)
         cse = df_wbm_cse.loc[mat_id, Key.computed_structure_entry]
         cse._energy = pet_energy  # noqa: SLF001 cse._energy is the uncorrected energy
@@ -111,21 +111,24 @@ def process_results(path: str) -> None:
 
     df_out["e_form_per_atom_pet_uncorrected"] = [
         calc_energy_from_e_refs(
-            dict(energy=row[energy_col], composition=row[Key.computed_structure_entry].formula),
+            dict(
+                energy=row[energy_col],
+                composition=row[Key.computed_structure_entry].formula,
+            ),
             ref_energies=mp_elemental_ref_energies,
         )
-        for _, row  in tqdm(df_out.iterrows(), total=len(df_out))
+        for _, row in tqdm(df_out.iterrows(), total=len(df_out))
     ]
 
     # save relaxed structures and final energies
     df_out.to_json(
-        f"pet-wbm-IS2RE-FIRE.jsonl.gz",
+        "pet-wbm-IS2RE-FIRE.jsonl.gz",
         default_handler=as_dict_handler,
-        orient="records",
         lines=True,
+        orient="records",
     )
     df_out = df_out.round(4)
-    df_out.select_dtypes("number").to_csv(f"pet.csv.gz")
+    df_out.select_dtypes("number").to_csv("pet.csv.gz")
 
     df_wbm[[*df_out]] = df_out
     bad_mask = abs(df_wbm[e_form_pet_col] - df_wbm[MbdKey.e_form_dft]) > 5

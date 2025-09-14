@@ -85,6 +85,7 @@ metrics:
       κ_SRE: 1.017
   geo_opt:
     pred_file: models/pet/pet/pet-wbm-IS2RE-FIRE.jsonl.gz
+    struct_col: pet_structure
   discovery:
     pred_file: models/pet/pet/pet.csv.gz
     # pred_file_url: https://figshare.com/files/54859376
