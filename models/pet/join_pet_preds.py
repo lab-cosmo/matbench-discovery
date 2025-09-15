@@ -34,13 +34,13 @@ def process_results(path: str) -> None:
         path (str): The path to the directory containing the .json.gz files from each
             job in the job array.
     """
-    if match := re.match(r"^(\d{4}-\d{2}-\d{2})-(.*)-wbm.*", path):
-        date, model_name = match[0], match[1]
-        print(f"{date=} {model_name=}")
-    else:
-        raise ValueError(f"{path=} failed to match regex")
+    # if match := re.match(r"^(\d{4}-\d{2}-\d{2})-(.*)-wbm.*", path):
+    #     date, model_name = match[0], match[1]
+    #     print(f"{date=} {model_name=}")
+    # else:
+    #     raise ValueError(f"{path=} failed to match regex")
 
-    glob_pattern = f"{path}/production-*.json.gz"
+    glob_pattern = f"{path}/*-*.json.gz"
     file_paths = glob(glob_pattern)
 
     out_dir = file_paths[0].rsplit("/", 1)[0]
@@ -55,7 +55,7 @@ def process_results(path: str) -> None:
     for fn in file_paths:
         print(fn)
         try:
-            dfs.append(pd.read_json(fn))
+            dfs.append(pd.read_json(fn, lines=True, compression="gzip"))
         except Exception as e:
             print(f"Error reading {fn}: {e}")  # Print any errors during file reading.
             continue  # Continue to the next file
@@ -68,7 +68,7 @@ def process_results(path: str) -> None:
         tot_df.sort_values("id_tuple").reset_index(drop=True).drop(columns=["id_tuple"])
     )
 
-    df_out = tot_df.set_index("material_id")  # .drop(columns=[struct_col])
+    df_out = tot_df.set_index("material_id", drop=False)  # .drop(columns=[struct_col])
 
     # Create ComputedStructureEntry objects with GRACE energies and structures
     wbm_cse_path = DataFiles.wbm_computed_structure_entries.path
@@ -83,7 +83,7 @@ def process_results(path: str) -> None:
     # corrections applied below are structure-dependent (for oxides and sulfides)
     cse: ComputedStructureEntry
     for row in tqdm(df_out.itertuples(), total=len(df_out), desc="ML energies to CSEs"):
-        mat_id, struct_dict, pet_energy, *_ = row
+        mat_id, _, struct_dict, pet_energy, *_ = row
         mlip_struct = Structure.from_dict(struct_dict)
         cse = df_wbm_cse.loc[mat_id, Key.computed_structure_entry]
         cse._energy = pet_energy  # noqa: SLF001 cse._energy is the uncorrected energy
@@ -101,7 +101,7 @@ def process_results(path: str) -> None:
     df_out[e_form_pet_col] = [
         calc_energy_from_e_refs(
             dict(
-                composition=row["formula"],
+                composition=row[Key.computed_structure_entry].formula,
                 energy=row[Key.computed_structure_entry].energy,  # use corrected energy
             ),
             ref_energies=mp_elemental_ref_energies,
@@ -111,22 +111,24 @@ def process_results(path: str) -> None:
 
     df_out["e_form_per_atom_pet_uncorrected"] = [
         calc_energy_from_e_refs(
-            dict(energy=row[energy_col], composition=row["formula"]),
+            dict(
+                energy=row[energy_col],
+                composition=row[Key.computed_structure_entry].formula,
+            ),
             ref_energies=mp_elemental_ref_energies,
         )
-        for row in tqdm(df_out.iterrows(), total=len(df_out))
+        for _, row in tqdm(df_out.iterrows(), total=len(df_out))
     ]
 
     # save relaxed structures and final energies
-    out_path = f"{out_dir}/{model_name}/{date}"
     df_out.to_json(
-        f"{out_path}-wbm-IS2RE-FIRE.jsonl.gz",
+        "pet-wbm-IS2RE-FIRE.jsonl.gz",
         default_handler=as_dict_handler,
-        orient="records",
         lines=True,
+        orient="records",
     )
     df_out = df_out.round(4)
-    df_out.select_dtypes("number").to_csv(f"{out_path}.csv.gz")
+    df_out.select_dtypes("number").to_csv("pet.csv.gz")
 
     df_wbm[[*df_out]] = df_out
     bad_mask = abs(df_wbm[e_form_pet_col] - df_wbm[MbdKey.e_form_dft]) > 5
@@ -135,10 +137,4 @@ def process_results(path: str) -> None:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Process relaxation results.")
-    parser.add_argument(
-        "path", type=str, help="Path to the directory with relaxation results."
-    )
-
-    args, _unknown = parser.parse_known_args()
-    process_results(args.path)
+    process_results("pet")
