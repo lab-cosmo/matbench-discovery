@@ -265,7 +265,7 @@ class Model(Files, base_dir=f"{ROOT}/models"):
     metadata such as hyperparameters, package versions, code and paper links, submission times, etc.
     """
 
-    alchembert = auto(), "alchembert/alchembert.yml"
+    # alchembert = auto(), "alchembert/alchembert.yml"
 
     # # AlphaNet: https://arxiv.org/abs/2501.07155
     # alphanet_v1_oma = auto(), "alphanet/alphanet-v1-oma.yml"
@@ -278,8 +278,8 @@ class Model(Files, base_dir=f"{ROOT}/models"):
     # alignn_ff = auto(), "alignn/alignn-ff.yml"
 
     # Allegro (NequIP arch)
-    allegro_oam_l_0_1 = auto(), "allegro/allegro-OAM-L-0.1.yml"
-    allegro_mp_l_0_1 = auto(), "allegro/allegro-MP-L-0.1.yml"
+    # allegro_oam_l_0_1 = auto(), "allegro/allegro-OAM-L-0.1.yml"
+    # allegro_mp_l_0_1 = auto(), "allegro/allegro-MP-L-0.1.yml"
 
     # BOWSR optimizer coupled with original megnet
     # bowsr_megnet = auto(), "bowsr/bowsr.yml"
@@ -342,8 +342,8 @@ class Model(Files, base_dir=f"{ROOT}/models"):
     # megnet = auto(), "megnet/megnet.yml"
 
     # NequIP
-    nequip_oam_l_0_1 = auto(), "nequip/nequip-OAM-L-0.1.yml"
-    nequip_mp_l_0_1 = auto(), "nequip/nequip-MP-L-0.1.yml"
+    # nequip_oam_l_0_1 = auto(), "nequip/nequip-OAM-L-0.1.yml"
+    # nequip_mp_l_0_1 = auto(), "nequip/nequip-MP-L-0.1.yml"
 
     # ORB
     # orb_v2 = auto(), "orb/orb-v2.yml"

@@ -40,8 +40,8 @@ slurm_array_task_count = int(
     os.getenv("SLURM_ARRAY_TASK_COUNT", "1")
 )  # will be set to the number of tasks in the job array.
 ase_optimizer = "FIRE"
-job_name = f"{model_name}/{today}-pet-wbm-{task_type}-{ase_optimizer}"
-out_dir = os.getenv("SBATCH_OUTPUT", f"{module_dir}/{job_name}")
+job_name = "pet"
+out_dir = os.getenv("SBATCH_OUTPUT", f"{job_name}")
 device = "cuda"
 # whether to record intermediate structures into pymatgen Trajectory
 record_traj = False  # has no effect if relax_cell is False
