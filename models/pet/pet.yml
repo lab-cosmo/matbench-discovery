@@ -95,6 +95,15 @@ metrics:
       n_structures: 256963 # count
       analysis_file: models/pet/pet/pet-wbm-IS2RE-FIRE-symprec=1e-2-moyo=0.4.6.csv.gz
       analysis_file_url:
+    symprec=1e-5:
+      rmsd: 0.0782 # unitless
+      n_sym_ops_mae: 10.0856 # unitless
+      symmetry_decrease: 0.8657 # fraction
+      symmetry_match: 0.1328 # fraction
+      symmetry_increase: 0.0008 # fraction
+      n_structures: 256959 # count
+      analysis_file: models/pet/pet/pet-wbm-IS2RE-FIRE-symprec=1e-5-moyo=0.4.6.csv.gz
+      analysis_file_url:
   discovery:
     pred_file: models/pet/pet.csv.gz
     # pred_file_url: https://figshare.com/files/54859376
