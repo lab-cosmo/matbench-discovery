@@ -86,6 +86,15 @@ metrics:
   geo_opt:
     pred_file: models/pet/pet/pet-wbm-IS2RE-FIRE.jsonl.gz
     struct_col: pet_structure
+    symprec=1e-2:
+      rmsd: 0.0782 # unitless
+      n_sym_ops_mae: 6.417 # unitless
+      symmetry_decrease: 0.5051 # fraction
+      symmetry_match: 0.4362 # fraction
+      symmetry_increase: 0.0478 # fraction
+      n_structures: 256963 # count
+      analysis_file: models/pet/pet/pet-wbm-IS2RE-FIRE-symprec=1e-2-moyo=0.4.6.csv.gz
+      analysis_file_url:
   discovery:
     pred_file: models/pet/pet/pet.csv.gz
     # pred_file_url: https://figshare.com/files/54859376
