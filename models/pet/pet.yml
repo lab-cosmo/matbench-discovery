@@ -87,78 +87,69 @@ metrics:
     pred_file: models/pet/pet-wbm-IS2RE-FIRE.jsonl.gz
     struct_col: pet_structure
     symprec=1e-2:
-      rmsd: 0.0782 # unitless
-      n_sym_ops_mae: 6.417 # unitless
-      symmetry_decrease: 0.5051 # fraction
-      symmetry_match: 0.4362 # fraction
-      symmetry_increase: 0.0478 # fraction
+      rmsd: 0.067 # unitless
+      n_sym_ops_mae: 2.6246 # unitless
+      symmetry_decrease: 0.1648 # fraction
+      symmetry_match: 0.7312 # fraction
+      symmetry_increase: 0.0939 # fraction
       n_structures: 256963 # count
-      analysis_file: models/pet/pet/pet-wbm-IS2RE-FIRE-symprec=1e-2-moyo=0.4.6.csv.gz
-      analysis_file_url:
-    symprec=1e-5:
-      rmsd: 0.0782 # unitless
-      n_sym_ops_mae: 10.0856 # unitless
-      symmetry_decrease: 0.8657 # fraction
-      symmetry_match: 0.1328 # fraction
-      symmetry_increase: 0.0008 # fraction
-      n_structures: 256959 # count
-      analysis_file: models/pet/pet/pet-wbm-IS2RE-FIRE-symprec=1e-5-moyo=0.4.6.csv.gz
+      analysis_file: models/pet/pet-wbm-IS2RE-FIRE-symprec=1e-2-moyo=0.4.4.csv.gz
       analysis_file_url:
   discovery:
     pred_file: models/pet/pet.csv.gz
     # pred_file_url: https://figshare.com/files/54859376
     pred_col: e_form_per_atom_pet
     full_test_set:
-      F1: .nan # fraction
-      DAF: .nan # dimensionless
-      Precision: .nan # fraction
-      Recall: 0.0 # fraction
-      Accuracy: 0.828 # fraction
-      TPR: 0.0 # fraction
-      FPR: 0.0 # fraction
-      TNR: 1.0 # fraction
-      FNR: 1.0 # fraction
-      TP: 0.0 # count
-      FP: 0.0 # count
-      TN: 212871.0 # count
-      FN: 44092.0 # count
-      MAE: 3.916 # eV/atom
-      RMSE: 3.996 # eV/atom
-      R2: -502.014 # dimensionless
-      missing_preds: 165916 # count
+      F1: 0.903 # fraction
+      DAF: 5.352 # dimensionless
+      Precision: 0.918 # fraction
+      Recall: 0.889 # fraction
+      Accuracy: 0.967 # fraction
+      TPR: 0.889 # fraction
+      FPR: 0.016 # fraction
+      TNR: 0.984 # fraction
+      FNR: 0.111 # fraction
+      TP: 39206.0 # count
+      FP: 3489.0 # count
+      TN: 209382.0 # count
+      FN: 4886.0 # count
+      MAE: 0.019 # eV/atom
+      RMSE: 0.071 # eV/atom
+      R2: 0.843 # dimensionless
+      missing_preds: 2 # count
     unique_prototypes:
-      F1: .nan # fraction
-      DAF: .nan # dimensionless
-      Precision: .nan # fraction
-      Recall: 0.0 # fraction
-      Accuracy: 0.845 # fraction
-      TPR: 0.0 # fraction
-      FPR: 0.0 # fraction
-      TNR: 1.0 # fraction
-      FNR: 1.0 # fraction
-      TP: 0.0 # count
-      FP: 0.0 # count
-      TN: 182114.0 # count
-      FN: 33374.0 # count
-      MAE: 3.916 # eV/atom
-      RMSE: 3.994 # eV/atom
-      R2: -481.142 # dimensionless
-      missing_preds: 138860 # count
+      F1: 0.923 # fraction
+      DAF: 6.111 # dimensionless
+      Precision: 0.934 # fraction
+      Recall: 0.912 # fraction
+      Accuracy: 0.976 # fraction
+      TPR: 0.912 # fraction
+      FPR: 0.012 # fraction
+      TNR: 0.988 # fraction
+      FNR: 0.088 # fraction
+      TP: 30446.0 # count
+      FP: 2143.0 # count
+      TN: 179971.0 # count
+      FN: 2928.0 # count
+      MAE: 0.02 # eV/atom
+      RMSE: 0.072 # eV/atom
+      R2: 0.847 # dimensionless
+      missing_preds: 0 # count
     most_stable_10k:
-      F1: .nan # fraction
-      DAF: .nan # dimensionless
-      Precision: .nan # fraction
-      Recall: 0.0 # fraction
-      Accuracy: 0.812 # fraction
-      TPR: 0.0 # fraction
-      FPR: 0.0 # fraction
-      TNR: 1.0 # fraction
-      FNR: 1.0 # fraction
-      TP: 0.0 # count
-      FP: 0.0 # count
-      TN: 8123.0 # count
-      FN: 1877.0 # count
-      MAE: 2.462 # eV/atom
-      RMSE: 2.512 # eV/atom
-      R2: -191.146 # dimensionless
+      F1: 0.986 # fraction
+      DAF: 6.362 # dimensionless
+      Precision: 0.973 # fraction
+      Recall: 1.0 # fraction
+      Accuracy: 0.973 # fraction
+      TPR: 1.0 # fraction
+      FPR: 1.0 # fraction
+      TNR: 0.0 # fraction
+      FNR: 0.0 # fraction
+      TP: 9726.0 # count
+      FP: 274.0 # count
+      TN: 0.0 # count
+      FN: 0.0 # count
+      MAE: 0.015 # eV/atom
+      RMSE: 0.065 # eV/atom
+      R2: 0.907 # dimensionless
       missing_preds: 0 # count

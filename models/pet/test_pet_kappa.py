@@ -1,13 +1,11 @@
 import json
 import os
-import sys
 import traceback
 import warnings
 from copy import deepcopy
 from datetime import datetime
 from importlib.metadata import version
 from typing import Any, Literal
-from pathlib import Path
 
 import pandas as pd
 import torch
@@ -17,8 +15,8 @@ from ase.io import read
 from ase.optimize import FIRE, LBFGS
 from ase.optimize.optimize import Optimizer
 from ase.spacegroup.symmetrize import check_symmetry
-from metatomic.torch.ase_calculator import MetatomicCalculator
 from metatomic.torch import load_atomistic_model
+from metatomic.torch.ase_calculator import MetatomicCalculator  #, O3AveragedCalculator
 from phono3py.api_phono3py import Phono3py
 from phonopy.structure.atoms import PhonopyAtoms
 from pymatviz.enums import Key
@@ -32,144 +30,42 @@ from matbench_discovery.metrics.phonons import calc_kappa_metrics_from_dfs
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="spglib")
 warnings.filterwarnings("ignore", category=FutureWarning, module="torch")
 
-########################################################################################
-from ase.calculators.calculator import Calculator
-from ase.atoms import Atoms
-import numpy as np
-from typing import Any
-
-
-def calculate_fc2_set(
-    ph3: Phono3py,
-    calculator: Calculator,
-    pbar_kwargs: dict[str, Any] | None = None,
-    batch_size: int = 16,
-) -> np.ndarray:
-    """Calculate 2nd order force constants. Requires initializing Phono3py with an FC2
-    supercell matrix.
-
-    Args:
-        ph3 (Phono3py): Phono3py object for which to calculate force constants.
-        calculator (Calculator): ASE calculator to compute forces.
-        pbar_kwargs (dict[str, Any] | None): Arguments passed to tqdm progress bar.
-            Defaults to None.
-
-    Returns:
-        np.ndarray: Array of forces for each displacement
-    """
-    print(f"Computing FC2 force set in {ph3.unitcell.formula}.")
-
-    forces: list[np.ndarray] = []
-
-    displacements = ph3.phonon_supercells_with_displacements
-    for batch in tqdm(
-        range(0, len(displacements), batch_size),
-        desc=f"FC2 calculation: {ph3.unitcell.formula}",
-        **pbar_kwargs or {},
-    ):
-        batch_displacements = displacements[batch : batch + batch_size]
-        batch_atoms = [
-            Atoms(
-                supercell.symbols,
-                cell=supercell.cell,
-                positions=supercell.positions,
-                pbc=True,
-            )
-            for supercell in batch_displacements
-        ]
-        res = calculator.compute_energy(batch_atoms, True)
-        f = res["forces"]
-        forces.extend(f)
-
-    force_set = np.stack(forces)
-    ph3.phonon_forces = force_set
-    return force_set
-
-
-def calculate_fc3_set(
-    ph3: Phono3py,
-    calculator: Calculator,
-    pbar_kwargs: dict[str, Any] | None = None,
-    batch_size: int = 16,
-) -> np.ndarray:
-    """Calculate 3rd order force constants.
-
-    Args:
-        ph3 (Phono3py): Phono3py object for which to calculate force constants.
-        calculator (Calculator): ASE calculator to compute forces.
-        pbar_kwargs (dict[str, Any] | None): Passed to tqdm progress bar.
-            Defaults to None.
-
-    Returns:
-        np.ndarray: Array of forces for each displacement
-    """
-    forces: list[np.ndarray] = []
-
-    desc = f"FC3 calculation: {ph3.unitcell.formula}"
-    task_idx = (pbar_kwargs or {}).get("position")
-    if task_idx:
-        desc = f"{task_idx}. {desc}"
-    displacements = ph3.supercells_with_displacements
-    for batch in tqdm(
-        range(0, len(displacements), batch_size),
-        desc=f"FC3 calculation: {ph3.unitcell.formula}",
-        **pbar_kwargs or {},
-    ):
-        batch_displacements = displacements[batch : batch + batch_size]
-        batch_atoms = [
-            Atoms(
-                supercell.symbols,
-                cell=supercell.cell,
-                positions=supercell.positions,
-                pbc=True,
-            )
-            for supercell in batch_displacements
-        ]
-        res = calculator.compute_energy(batch_atoms, True)
-        f = res["forces"]
-        forces.extend(f)
-
-    force_set = np.stack(forces)
-    ph3.forces = force_set
-    return force_set
-########################################################################################
-
 # Model configuration
 model_name = "pet"
-model_variant = sys.argv[1]
-precision = "float64"
+model_variant = "pet"
 device = "cuda" if torch.cuda.is_available() else "cpu"
-dtype = torch.float64 if precision == "float64" else torch.float32
-model = load_atomistic_model(f"{model_name}-{model_variant}.pt")
-model.capabilities().dtype = precision
-model.to(dtype=dtype, device=device)
-calc = MetatomicCalculator(model, device=device, non_conservative=False)
-batch_size = 32
+max_num_neighbors = 120
 
 # Relaxation parameters
 ase_optimizer: Literal["FIRE", "LBFGS"] = "FIRE"
-max_steps = 300
-force_max = 1e-8  # In eV/Å
+max_steps = 1000
+force_max = 1e-4  # In eV/Å
 symprec = 1e-5
-displacement_distance = float(sys.argv[2])/10000  # Displacement distance for phono3py
+displacement_distance = 0.03  # Displacement distance for phono3py
+print(displacement_distance)
 enforce_relax_symm = True
 ignore_broken_symm = False
 ignore_imaginary_freqs = False
-is_plusminus = True # Displace in both + and - directions
+is_plusminus = True
 temperatures = [300]  # Temperatures to calculate conductivity at in Kelvin
 save_forces = True  # Save force sets to file
+deterministic = False
+precision = "float64"
 
 task_type = "LTC"  # lattice thermal conductivity
 job_name = (
     f"{model_name}-phononDB-{task_type}-{ase_optimizer}_force{force_max}_sym{symprec}"
 )
-out_dir = f"./kappa_results_{model_variant}_disp{displacement_distance}/"
+out_dir = f"./kappa_results_{model_variant}"
 os.makedirs(out_dir, exist_ok=True)
 out_path = f"{out_dir}/{job_name}.json.gz"
 force_sets_path = f"{out_dir}/force-sets.json.gz"
 
 timestamp = f"{datetime.now().astimezone():%Y-%m-%d %H:%M:%S}"
 atoms_list = read(DataFiles.phonondb_pbe_103_structures.path, index=":")
+
+# Limit to only the first few structures
+atoms_list = atoms_list[:10]
 
 run_params = {
     "timestamp": timestamp,
@@ -191,7 +87,9 @@ run_params = {
     "task_type": task_type,
     "job_name": job_name,
     "n_structures": len(atoms_list),
+    "max_num_neighbors": max_num_neighbors,
     "precision": precision,
+    "deterministic": deterministic,
 }
 
 with open(f"{out_dir}/run_params.json", mode="w") as file:
@@ -199,6 +97,18 @@ with open(f"{out_dir}/run_params.json", mode="w") as file:
 
 print(f"Results will be saved to {out_dir}")
 print(f"Using {device=}")
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
+dtype = torch.float64 if precision == "float64" else torch.float32
+model = load_atomistic_model("pet-oam-1epoch-55.pt")
+model.capabilities().dtype = "float64"
+model.to(dtype=torch.float64, device=device)
+calc = MetatomicCalculator(model, device=device, non_conservative=False)
+# calc = O3AveragedCalculator(calc, l_max=3, batch_size=4)
+
+if deterministic:
+    torch.use_deterministic_algorithms(mode=True)
+
 
 # Set up the optimizer class from string
 optim_cls: type[Optimizer] = {"FIRE": FIRE, "LBFGS": LBFGS}[ase_optimizer]
@@ -297,21 +207,10 @@ for idx, atoms in tqdm_bar:
         ph3.generate_displacements(
             distance=displacement_distance, is_plusminus=is_plusminus
         )
-        
         # Calculate force constants and frequencies
-        if ph3.mesh_numbers is None:
-            raise ValueError(
-                "mesh_numbers was not found in phono3py object and was not provided as "
-                "an argument when calculating phonons from phono3py object."
-            )
-
-        fc2_set = calculate_fc2_set(ph3, calc, pbar_kwargs={"leave": False} | ({"disable": True} or {}), batch_size=batch_size)
-
-        ph3.produce_fc2(symmetrize_fc2=True, use_symfc_projector=True)
-        ph3.init_phph_interaction(symmetrize_fc3q=False)
-        ph3.run_phonon_solver()
-
-        freqs, _, _ = ph3.get_phonon_data()
+        ph3, fc2_set, freqs = ltc.get_fc2_and_freqs(
+            ph3, calculator=calc, pbar_kwargs={"disable": True}
+        )
 
         # Check for imaginary frequencies
         has_imaginary_freqs = phonons.check_imaginary_freqs(freqs)
@@ -326,13 +225,12 @@ for idx, atoms in tqdm_bar:
         )
 
         if continue_computing_conductivity:
-            fc3_set = calculate_fc3_set(
+            fc3_set = ltc.calculate_fc3_set(
                 ph3,
                 calculator=calc,
                 pbar_kwargs={"position": idx},
-                batch_size=batch_size,
             )
-            ph3.produce_fc3(symmetrize_fc3r=True, use_symfc_projector=True)
+            ph3.produce_fc3(symmetrize_fc3r=True)
         else:
             fc3_set = []
 
@@ -390,9 +288,7 @@ if save_forces and force_results:
 
 try:
     print("Computing metrics against reference data...")
-    df_dft = pd.read_json(DataFiles.phonondb_pbe_103_kappa_no_nac.path).set_index(
-        Key.mat_id
-    )
+    df_dft = pd.read_json(DataFiles.phonondb_pbe_103_kappa_no_nac.path).set_index("mp_id")
     df_ml_metrics = calc_kappa_metrics_from_dfs(df_kappa, df_dft)
     # Compute and print summary metrics
     kappa_sre = df_ml_metrics[Key.sre].mean()

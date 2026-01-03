@@ -21,7 +21,7 @@ from matbench_discovery import timestamp, today
 from matbench_discovery.data import as_dict_handler, ase_atoms_from_zip
 from matbench_discovery.enums import DataFiles, Model, Task
 
-from metatomic.torch.ase_calculator import MetatomicCalculator
+from metatomic.torch.ase_calculator import MetatomicCalculator, SymmetrizedCalculator
 
 __author__ = "Yury Lysogorskiy"
 __date__ = "2025-02-06"
@@ -76,7 +76,8 @@ max_steps = 500
 force_max = 0.05  # Run until the forces are smaller than this in eV/A
 checkpoint = ""
 dtype = "float64"
-calc = MetatomicCalculator("model.pt", device=device, non_conservative=False)
+calc = MetatomicCalculator("pet-oam-1epoch-55.pt", device=device)
+calc = SymmetrizedCalculator(calc, batch_size=16)
 
 print(f"Read data from {data_path}")
 atoms_list: list[Atoms] = ase_atoms_from_zip(data_path)

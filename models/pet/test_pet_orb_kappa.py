@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 import traceback
 import warnings
 from copy import deepcopy
@@ -15,8 +16,6 @@ from ase.io import read
 from ase.optimize import FIRE, LBFGS
 from ase.optimize.optimize import Optimizer
 from ase.spacegroup.symmetrize import check_symmetry
-from orb_models.forcefield.calculator import ORBCalculator
-from orb_models.forcefield.pretrained import ORB_PRETRAINED_MODELS
 from phono3py.api_phono3py import Phono3py
 from phonopy.structure.atoms import PhonopyAtoms
 from pymatviz.enums import Key
@@ -31,31 +30,37 @@ warnings.filterwarnings("ignore", category=DeprecationWarning, module="spglib")
 warnings.filterwarnings("ignore", category=FutureWarning, module="torch")
 
 # Model configuration
-model_name = "orb-v3"
-model_variant = "orb-v3-conservative-inf-mpa"  # ORB v3 model to evaluate
+from metatomic.torch.ase_calculator import MetatomicCalculator, O3AveragedCalculator
+from metatomic.torch import load_atomistic_model
+
+model_name = "pet"
+model_variant = sys.argv[1]
+precision = "float64"
 device = "cuda" if torch.cuda.is_available() else "cpu"
-max_num_neighbors = 120
+dtype = torch.float64 if precision == "float64" else torch.float32
+model = load_atomistic_model(f"/work/cosmo/bigi/models/model-{model_variant}.pt")
+model.capabilities().dtype = precision
+model = model.to(dtype=dtype, device=device)
+calc = MetatomicCalculator(model, device=device, non_conservative=False)
 
 # Relaxation parameters
 ase_optimizer: Literal["FIRE", "LBFGS"] = "FIRE"
-max_steps = 500
-force_max = 1e-4  # In eV/Å
+max_steps = 300
+force_max = 1e-4
 symprec = 1e-5
-displacement_distance = 0.03  # Displacement distance for phono3py
+displacement_distance = float(sys.argv[2])
 enforce_relax_symm = True
 ignore_broken_symm = False
-ignore_imaginary_freqs = False
+ignore_imaginary_freqs = True
 is_plusminus = True
 temperatures = [300]  # Temperatures to calculate conductivity at in Kelvin
-save_forces = True  # Save force sets to file
+save_forces = False  # Save force sets to files
 deterministic = False
 precision = "float64"
 
 task_type = "LTC"  # lattice thermal conductivity
-job_name = (
-    f"{model_name}-phononDB-{task_type}-{ase_optimizer}_force{force_max}_sym{symprec}"
-)
-out_dir = f"./kappa_results_{model_variant}"
+job_name = f"{model_name}-phononDB-{task_type}-{ase_optimizer}_force{force_max}_sym{symprec}_ispm{is_plusminus}_disp{displacement_distance}"
+out_dir = f"./orblike_kappa_results_{model_variant}"
 os.makedirs(out_dir, exist_ok=True)
 out_path = f"{out_dir}/{job_name}.json.gz"
 force_sets_path = f"{out_dir}/force-sets.json.gz"
@@ -64,7 +69,7 @@ timestamp = f"{datetime.now().astimezone():%Y-%m-%d %H:%M:%S}"
 atoms_list = read(DataFiles.phonondb_pbe_103_structures.path, index=":")
 
 # Limit to only 10 structures
-atoms_list = atoms_list[:10]
+# atoms_list = atoms_list[:10]
 
 run_params = {
     "timestamp": timestamp,
@@ -86,7 +91,6 @@ run_params = {
     "task_type": task_type,
     "job_name": job_name,
     "n_structures": len(atoms_list),
-    "max_num_neighbors": max_num_neighbors,
     "precision": precision,
     "deterministic": deterministic,
 }
@@ -97,14 +101,6 @@ with open(f"{out_dir}/run_params.json", mode="w") as file:
 print(f"Results will be saved to {out_dir}")
 print(f"Using {device=}")
 
-# Load and configure the ORB model
-model = ORB_PRETRAINED_MODELS[model_variant]()
-model.to(device)
-calc = ORBCalculator(
-    model,
-    max_num_neighbors=max_num_neighbors,
-    device=device,
-)
 
 if deterministic:
     torch.use_deterministic_algorithms(mode=True)
@@ -200,7 +196,7 @@ for idx, atoms in tqdm_bar:
             primitive_matrix="auto",
             symprec=symprec,
         )
-        ph3.mesh_numbers = atoms.info["q_mesh"]
+        ph3.mesh_numbers = atoms.info["q_point_mesh"]
 
         # Generate displacements in both positive and negative direction even if
         # symmetrically equivalent (different from other models!)
