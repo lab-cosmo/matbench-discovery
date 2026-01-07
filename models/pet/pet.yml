@@ -77,12 +77,10 @@ training_set: [MPtrj]
 metrics:
   phonons:
     kappa_103:
-      # pred_file: models/pet/kappa_results/conductivity.json.gz
-      pred_file: models/pet/metrics.json.gz
-      # pred_file: models/pet/metrics_with_script_like_esen.json.gz
-      # pred_file_url: https://figshare.com/files/53461061
-      κ_SRME: 1.1366
-      κ_SRE: 1.017
+      pred_file: models/pet/pet/2026-01-07-kappa-103-FIRE-dist=0.03-fmax=0.0001-symprec=1e-05/0_kappa.json.gz
+
+      κ_SRME: 0.1794
+      κ_SRE: 0.078
   geo_opt:
     pred_file: models/pet/pet-wbm-IS2RE-FIRE.jsonl.gz
     struct_col: pet_structure
