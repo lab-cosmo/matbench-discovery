@@ -155,8 +155,9 @@ try:
     df_dft = pd.read_json(DataFiles.phonondb_pbe_103_kappa_no_nac.path).set_index(
         Key.mat_id
     )
-    # WARNING: setting has_imag_ph_modes to False to compute the metrics anyway
-    df_kappa["has_imag_ph_modes"] = False
+    if ignore_imaginary_freqs:
+        # WARNING: setting has_imag_ph_modes to False to compute the metrics anyway
+        df_kappa["has_imag_ph_modes"] = False
     df_ml_metrics = calc_kappa_metrics_from_dfs(df_kappa, df_dft)
     # Compute and print summary metrics
     kappa_sre = df_ml_metrics[Key.sre].mean()
