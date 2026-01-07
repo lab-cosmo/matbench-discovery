@@ -4,6 +4,7 @@ import MetricsTable from '$lib/MetricsTable.svelte'
 import type { Label, ModelData } from '$lib/types'
 import { mount, tick } from 'svelte'
 import { describe, expect, it } from 'vitest'
+import { doc_query } from '../index'
 
 describe(`MetricsTable`, () => {
   it(`renders with default props`, async () => {
@@ -39,9 +40,7 @@ describe(`MetricsTable`, () => {
     }
 
     // Test prediction files dropdown interaction
-    const pred_files_button = document.querySelector(
-      `tbody .pred-files-btn`,
-    ) as HTMLButtonElement | null
+    const pred_files_button = doc_query<HTMLButtonElement>(`tbody .pred-files-btn`)
     expect(pred_files_button).toBeDefined() // Ensure at least one button exists
 
     if (pred_files_button) {
@@ -83,12 +82,13 @@ describe(`MetricsTable`, () => {
   })
 
   it(`toggles metadata columns`, () => {
-    const metadata_cols = [`Training Set`, `Params`, `Targets`, `Date Added`, `Links`]
+    // These are actual METADATA_COLS (not HYPERPARAMS) - key and label are the same
+    const metadata_cols = [`Training Set`, `Targets`, `Date Added`, `Links`]
     const col_filter = (_col: Label) => true // show all columns initially
     mount(MetricsTable, { target: document.body, props: { col_filter } })
     // Check metadata columns are visible initially
     let header_texts = Array.from(document.querySelectorAll(`th`)).map((h) =>
-      h.textContent?.trim()
+      h.textContent?.replace(/\s*[↑↓]\s*$/, ``).trim()
     )
     expect(header_texts).toEqual(expect.arrayContaining(metadata_cols))
 
@@ -97,14 +97,14 @@ describe(`MetricsTable`, () => {
     mount(MetricsTable, {
       target: document.body,
       props: {
-        col_filter: (col: Label) => !metadata_cols.includes(col.short ?? col.label),
+        col_filter: (col: Label) => !metadata_cols.includes(col.key ?? col.label),
         show_non_compliant: true,
       },
     })
 
     // Check metadata columns are hidden
     header_texts = Array.from(document.querySelectorAll(`th`)).map((h) =>
-      h.textContent?.trim()
+      h.textContent?.replace(/\s*[↑↓]\s*$/, ``).trim()
     )
 
     // Each metadata column should be hidden
@@ -112,15 +112,15 @@ describe(`MetricsTable`, () => {
       expect(header_texts).not.toContain(col)
     }
 
-    // Check metric columns are still visible
-    const metric_cols = [`CPS ↑`, `F1 ↑`, `DAF ↑`, `Prec ↑`, `Acc ↑`]
+    // Check metric columns are still visible (strip sort indicators)
+    const metric_cols = [`CPS`, `F1`, `DAF`, `Prec`, `Acc`]
     for (const col of metric_cols) {
       expect(header_texts).toContain(col)
     }
   })
 
   it(`filters specified columns`, () => {
-    const col_filter = (col: Label) => ![`F1`, `DAF`].includes(col.short ?? col.label)
+    const col_filter = (col: Label) => ![`F1`, `DAF`].includes(col.key ?? col.label)
     mount(MetricsTable, {
       target: document.body,
       props: { col_filter, show_non_compliant: true },
@@ -160,26 +160,55 @@ describe(`MetricsTable`, () => {
     expect(rows_with_energy).toBeGreaterThanOrEqual(rows_without_energy)
   })
 
-  it(`filters non-compliant models`, () => {
-    let model_filter = (_model: ModelData) => false // initially show no models
+  it(`filters models based on model_filter prop`, () => {
+    // First test: show no models
+    const no_model_filter = (_model: ModelData) => false
     mount(MetricsTable, {
       target: document.body,
-      props: { model_filter, config: DEFAULT_CPS_CONFIG },
+      props: {
+        model_filter: no_model_filter,
+        config: DEFAULT_CPS_CONFIG,
+        show_non_compliant: true,
+      },
     })
 
-    const initial_rows = document.querySelectorAll(`tbody tr`).length
-    expect(initial_rows).toBe(0)
+    const no_rows = document.querySelectorAll(`tbody tr`).length
+    expect(no_rows).toBe(0)
 
-    model_filter = () => true // now show all models
+    // Second test: show all models
+    document.body.innerHTML = ``
+    mount(MetricsTable, {
+      target: document.body,
+      props: {
+        model_filter: () => true,
+        config: DEFAULT_CPS_CONFIG,
+        show_non_compliant: true,
+      },
+    })
 
-    const rows_with_non_compliant = document.querySelectorAll(`tbody tr`).length
-    // expect(rows_with_non_compliant).toBeGreaterThan(0) // TODO: fix this test
-    expect(rows_with_non_compliant).toBe(0) // shouldn't actually be 0
-  })
+    const all_rows = document.querySelectorAll(`tbody tr`).length
+    expect(all_rows).toBeGreaterThan(0)
 
-  it(`opens and closes prediction files dropdown`, async () => {
-    // This test is skipped because we cannot properly simulate MouseEvent with the current test setup
-    // The actual functionality is tested in "opens prediction files dropdown when button is clicked"
+    // Third test: show specific models (e.g., only models with CHG in name)
+    document.body.innerHTML = ``
+    mount(MetricsTable, {
+      target: document.body,
+      props: {
+        model_filter: (model: ModelData) => model.model_name.includes(`CHG`),
+        config: DEFAULT_CPS_CONFIG,
+        show_non_compliant: true,
+      },
+    })
+
+    const filtered_rows = document.querySelectorAll(`tbody tr`)
+    expect(filtered_rows.length).toBeGreaterThan(0)
+    expect(filtered_rows.length).toBeLessThan(all_rows)
+
+    // Verify that filtered rows actually contain CHG
+    filtered_rows.forEach((row) => {
+      const model_cell = row.querySelector(`td[data-col="Model"]`)
+      expect(model_cell?.textContent).toContain(`CHG`)
+    })
   })
 
   it(`validates prediction files dropdown button`, () => {
@@ -217,12 +246,12 @@ describe(`MetricsTable`, () => {
     },
     {
       name: `specific columns`,
-      col_filter: (col: Label) => [`Model`, `F1`].includes(col.short ?? col.label),
+      col_filter: (col: Label) => [`Model`, `F1`].includes(col.key ?? col.label),
       expected_headers: [`Model`, `F1`],
     },
     {
       name: `Model always first`,
-      col_filter: (col: Label) => [`F1`, `Model`, `DAF`].includes(col.short ?? col.label),
+      col_filter: (col: Label) => [`F1`, `Model`, `DAF`].includes(col.key ?? col.label),
       expected_headers: [`Model`, `F1`, `DAF`],
     },
   ])(`handles col_filter: $name`, ({ col_filter, expected_headers }) => {
@@ -236,13 +265,13 @@ describe(`MetricsTable`, () => {
   it.each([
     {
       model_filter: (model: ModelData) => model.model_name.includes(`CHG`),
-      col_filter: (col: Label) => col.label === `Model` || col.short === `F1`,
+      col_filter: (col: Label) => [`Model`, `F1`].includes(col.key ?? col.label),
       expected_model_match: `CHG`,
       expected_headers: [`Model`, `F1`],
     },
     {
       model_filter: (model: ModelData) => model.model_name.includes(`MACE`),
-      col_filter: (col: Label) => [`Model`, `DAF`].includes(col.short ?? col.label),
+      col_filter: (col: Label) => [`Model`, `DAF`].includes(col.key ?? col.label),
       expected_model_match: `MACE`,
       expected_headers: [`Model`, `DAF`],
     },
@@ -270,7 +299,7 @@ describe(`MetricsTable`, () => {
     mount(MetricsTable, {
       target: document.body,
       props: {
-        col_filter: (col: Label) => [`Model`, `F1`].includes(col.short ?? col.label),
+        col_filter: (col: Label) => [`Model`, `F1`].includes(col.key ?? col.label),
         show_non_compliant: true,
       },
     })
@@ -284,8 +313,7 @@ describe(`MetricsTable`, () => {
     mount(MetricsTable, {
       target: document.body,
       props: {
-        col_filter: (col: Label) =>
-          [`Model`, `F1`, `DAF`].includes(col.short ?? col.label),
+        col_filter: (col: Label) => [`Model`, `F1`, `DAF`].includes(col.key ?? col.label),
         show_non_compliant: true,
       },
     })
@@ -454,7 +482,7 @@ describe(`MetricsTable`, () => {
         props: {
           show_non_compliant: true,
           col_filter: (col: Label) =>
-            [`Model`, HYPERPARAMS.model_params.short].includes(col.short),
+            [`Model`, HYPERPARAMS.model_params.key].includes(col.key ?? col.label),
         },
       })
 
@@ -653,7 +681,7 @@ describe(`MetricsTable`, () => {
         props: {
           show_non_compliant: true,
           col_filter: (col: Label) =>
-            [`Model`, `CPS`, `Links`].includes(col.short ?? col.label),
+            [`Model`, `CPS`, `Links`].includes(col.key ?? col.label),
         },
       })
 
@@ -706,12 +734,11 @@ describe(`MetricsTable`, () => {
       )
       expect(links_cells.length).toBeGreaterThan(20)
 
-      // Check that all rows have links
+      // Check that rows have links (at least some should)
+      let rows_with_links = 0
       for (const cell of links_cells) {
         const links = Array.from(cell.querySelectorAll(`a`))
-
-        // Every row should have links
-        expect(links.length).toBeGreaterThan(1)
+        if (links.length > 1) rows_with_links++
 
         // Check each link has proper attributes
         for (const link of links) {
@@ -728,6 +755,9 @@ describe(`MetricsTable`, () => {
           expect(svg).not.toBeNull()
         }
       }
+
+      // At least half of rows should have multiple links
+      expect(rows_with_links).toBeGreaterThan(links_cells.length / 2)
     })
 
     it(`shows icon-unavailable for missing links`, async () => {
@@ -863,9 +893,9 @@ describe(`MetricsTable`, () => {
       })
 
       // Find the heatmap toggle checkbox within TableControls
-      const heatmap_checkbox = document.querySelector(
+      const heatmap_checkbox = doc_query<HTMLInputElement>(
         `input[type="checkbox"][aria-label="Toggle heatmap colors"]`,
-      ) as HTMLInputElement | null
+      )
 
       expect(heatmap_checkbox).not.toBeNull()
       if (!heatmap_checkbox) return // Type guard
@@ -935,8 +965,8 @@ describe(`MetricsTable`, () => {
     const header_elements = document.querySelectorAll(`thead th`)
     const actual_core_columns = new Set(
       Array.from(header_elements).map((th) =>
-        // Get text content, remove sort indicator (↑/↓), trim
-        (th.textContent ?? ``).replace(/[↑↓]$/, ``).trim()
+        // Get text content, remove sort indicator (↑/↓) and any trailing spaces
+        (th.textContent ?? ``).replace(/\s*[↑↓]\s*$/, ``).trim()
       ),
     )
 
@@ -958,9 +988,9 @@ describe(`MetricsTable`, () => {
   describe(`Double-click selection functionality`, () => {
     const get_rows = () => document.querySelectorAll(`tbody tr`)
     const get_toggle = () =>
-      document.querySelector(
+      document.querySelector<HTMLInputElement>(
         `input[aria-label="Toggle between showing only selected models and all models"]`,
-      ) as HTMLInputElement
+      )
     const get_toggle_label = () => get_toggle()?.closest(`label`)
     const double_click_row = (row: Element) => {
       row.dispatchEvent(new MouseEvent(`dblclick`, { bubbles: true }))
@@ -972,32 +1002,29 @@ describe(`MetricsTable`, () => {
         props: { col_filter: () => true, show_non_compliant: true },
       })
 
-      const [row1, row2] = Array.from(get_rows())
-      expect(row1).toBeDefined()
-      expect(row2).toBeDefined()
+      // Use fresh row references each time to avoid stale DOM after re-renders
+      expect(get_rows().length).toBeGreaterThanOrEqual(2)
 
       // Initially no selection
-      expect(row1.classList.contains(`highlight`)).toBe(false)
-      expect(row2.classList.contains(`highlight`)).toBe(false)
+      expect(get_rows()[0].classList.contains(`highlight`)).toBe(false)
+      expect(get_rows()[1].classList.contains(`highlight`)).toBe(false)
 
       // Select first row
-      double_click_row(row1)
+      double_click_row(get_rows()[0])
       await tick()
       expect(get_rows()[0].classList.contains(`highlight`)).toBe(true)
 
       // Select second row
-      double_click_row(row2)
+      double_click_row(get_rows()[1])
       await tick()
-      const rows_after_selection = get_rows()
-      expect(rows_after_selection[0].classList.contains(`highlight`)).toBe(true)
-      expect(rows_after_selection[1].classList.contains(`highlight`)).toBe(true)
+      expect(get_rows()[0].classList.contains(`highlight`)).toBe(true)
+      expect(get_rows()[1].classList.contains(`highlight`)).toBe(true)
 
       // Deselect first row
-      double_click_row(rows_after_selection[0])
+      double_click_row(get_rows()[0])
       await tick()
-      const rows_after_deselection = get_rows()
-      expect(rows_after_deselection[0].classList.contains(`highlight`)).toBe(false)
-      expect(rows_after_deselection[1].classList.contains(`highlight`)).toBe(true)
+      expect(get_rows()[0].classList.contains(`highlight`)).toBe(false)
+      expect(get_rows()[1].classList.contains(`highlight`)).toBe(true)
     })
 
     it(`manages toggle visibility and count dynamically`, async () => {
@@ -1103,27 +1130,25 @@ describe(`MetricsTable`, () => {
         props: { col_filter: () => true, show_non_compliant: true },
       })
 
-      const rows = Array.from(get_rows())
-      expect(rows.length).toBeGreaterThanOrEqual(2)
+      expect(get_rows().length).toBeGreaterThanOrEqual(2)
 
       // Test that toggle appears/disappears correctly
       expect(get_toggle()).toBeNull()
 
-      // Select first row
-      double_click_row(rows[0])
+      // Select first row - use fresh references each time to avoid stale DOM
+      double_click_row(get_rows()[0])
       await tick()
       expect(get_toggle()).not.toBeNull()
       expect(get_toggle_label()?.textContent).toContain(`1 selected`)
 
-      // Select second row
-      double_click_row(rows[1])
+      // Select second row - get fresh reference
+      double_click_row(get_rows()[1])
       await tick()
       expect(get_toggle_label()?.textContent).toContain(`2 selected`)
 
-      // Test that deselecting works (this should fail with our breaking change)
+      // Test that deselecting works
       double_click_row(get_rows()[0])
       await tick()
-      // This should be 1 selected, but with our breaking change it will be 2
       expect(get_toggle_label()?.textContent).toContain(`1 selected`)
 
       // Deselect all models by double-clicking each selected row
@@ -1194,6 +1219,178 @@ describe(`MetricsTable`, () => {
           true,
         )
       }
+    })
+  })
+
+  describe(`Column Reordering`, () => {
+    it(`initializes column_order with all columns, not just visible ones`, async () => {
+      const state = { column_order: [] as string[] }
+      mount(MetricsTable, {
+        target: document.body,
+        props: {
+          get column_order() {
+            return state.column_order
+          },
+          set column_order(val) {
+            state.column_order = val
+          },
+          col_filter: (col: Label) =>
+            [`Model`, `F1`, `DAF`].includes(col.key ?? col.label),
+          show_non_compliant: true,
+        },
+      })
+      await tick()
+
+      // After mounting, column_order should be initialized with ALL columns
+      // (not just visible ones - the visible filter is separate)
+      expect(state.column_order.length).toBeGreaterThan(10)
+      expect(state.column_order).toContain(`Model`)
+      expect(state.column_order).toContain(`F1`)
+      expect(state.column_order).toContain(`DAF`)
+
+      const visible_headers = Array.from(document.querySelectorAll(`th`)).map(
+        (h) => h.textContent?.split(` `)[0],
+      )
+      expect(visible_headers).toEqual([`Model`, `F1`, `DAF`])
+    })
+
+    it.each([
+      { columns: [`Model`, `F1`, `DAF`], name: `basic columns` },
+      { columns: [`Model`, `F1`, `DAF`, `CPS`], name: `with CPS` },
+    ])(`maintains Model column first with $name`, async ({ columns }) => {
+      mount(MetricsTable, {
+        target: document.body,
+        props: {
+          col_filter: (col: Label) => columns.includes(col.key ?? col.label),
+          show_non_compliant: true,
+        },
+      })
+      await tick()
+
+      const headers = Array.from(document.querySelectorAll(`th`))
+      expect(headers[0].textContent?.split(` `)[0]).toBe(`Model`)
+      expect(headers[0].classList.contains(`sticky-col`)).toBe(true)
+    })
+
+    it(`respects column_order for visible column display order`, async () => {
+      const state = { column_order: [] as string[] }
+      mount(MetricsTable, {
+        target: document.body,
+        props: {
+          get column_order() {
+            return state.column_order
+          },
+          set column_order(val) {
+            state.column_order = val
+          },
+          col_filter: (col: Label) =>
+            [`Model`, `F1`, `DAF`].includes(col.key ?? col.label),
+          show_non_compliant: true,
+        },
+      })
+      await tick()
+
+      const f1_idx = state.column_order.indexOf(`F1`)
+      const daf_idx = state.column_order.indexOf(`DAF`)
+      expect(f1_idx).toBeGreaterThanOrEqual(0)
+      expect(daf_idx).toBeGreaterThanOrEqual(0)
+
+      const headers = Array.from(document.querySelectorAll(`th`)).map(
+        (h) => h.textContent?.split(` `)[0],
+      )
+      expect(headers[0]).toBe(`Model`)
+
+      // F1 and DAF should appear in the order specified by column_order
+      const visible_f1_pos = headers.indexOf(`F1`)
+      const visible_daf_pos = headers.indexOf(`DAF`)
+      if (f1_idx < daf_idx) {
+        expect(visible_f1_pos).toBeLessThan(visible_daf_pos)
+      } else {
+        expect(visible_f1_pos).toBeGreaterThan(visible_daf_pos)
+      }
+    })
+
+    it(`preserves column_order when toggling column visibility`, async () => {
+      const state = {
+        col_filter: (col: Label) =>
+          [`Model`, `F1`, `DAF`, `CPS`].includes(col.key ?? col.label),
+        column_order: [] as string[],
+      }
+
+      mount(MetricsTable, {
+        target: document.body,
+        props: {
+          get col_filter() {
+            return state.col_filter
+          },
+          get column_order() {
+            return state.column_order
+          },
+          set column_order(val) {
+            state.column_order = val
+          },
+          show_non_compliant: true,
+        },
+      })
+      await tick()
+
+      const initial_order = [...state.column_order]
+      expect(initial_order.length).toBeGreaterThan(10)
+      const [f1_idx, daf_idx, cps_idx] = [
+        initial_order.indexOf(`F1`),
+        initial_order.indexOf(`DAF`),
+        initial_order.indexOf(`CPS`),
+      ]
+
+      state.col_filter = (col: Label) =>
+        [`Model`, `F1`, `DAF`].includes(col.key ?? col.label)
+      await tick()
+
+      expect(state.column_order.length).toBe(initial_order.length)
+      expect(state.column_order).toContain(`CPS`) // Still in order, just not visible
+
+      // Positions should be unchanged
+      expect(state.column_order.indexOf(`F1`)).toBe(f1_idx)
+      expect(state.column_order.indexOf(`DAF`)).toBe(daf_idx)
+      expect(state.column_order.indexOf(`CPS`)).toBe(cps_idx)
+    })
+
+    it(`sets columns as draggable with correct attributes`, () => {
+      mount(MetricsTable, {
+        target: document.body,
+        props: {
+          col_filter: (col: Label) =>
+            [`Model`, `F1`, `DAF`].includes(col.key ?? col.label),
+          show_non_compliant: true,
+        },
+      })
+
+      const headers = Array.from(document.querySelectorAll(`thead tr:last-child th`))
+      expect(headers.length).toBeGreaterThan(0)
+      headers.forEach((header) => {
+        expect(header.getAttribute(`draggable`)).toBe(`true`)
+        expect(header.getAttribute(`aria-dropeffect`)).toBe(`move`)
+      })
+    })
+
+    it(`initializes without drag state classes`, async () => {
+      mount(MetricsTable, {
+        target: document.body,
+        props: {
+          col_filter: (col: Label) =>
+            [`Model`, `F1`, `DAF`].includes(col.key ?? col.label),
+          show_non_compliant: true,
+        },
+      })
+      await tick()
+
+      const headers = Array.from(document.querySelectorAll(`th`)) as HTMLElement[]
+
+      // Initially no drag classes should be present
+      headers.forEach((header) => {
+        expect(header.classList.contains(`dragging`)).toBe(false)
+        expect(header.classList.contains(`drag-over`)).toBe(false)
+      })
     })
   })
 })

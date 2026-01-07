@@ -1,7 +1,7 @@
 import DynamicScatter from '$lib/DynamicScatter.svelte'
 import type { ModelData } from '$lib/types'
 import { mount } from 'svelte'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { doc_query, is_hidden } from '../index'
 
 const pane_selector = `[aria-label="Draggable pane"]`
@@ -83,11 +83,6 @@ describe(`DynamicScatter.svelte`, () => {
     })
   })
 
-  afterEach(() => {
-    document.body.innerHTML = ``
-    vi.restoreAllMocks()
-  })
-
   it(`mounts correctly with default props`, () => {
     mount(DynamicScatter, {
       target: document.body,
@@ -98,20 +93,12 @@ describe(`DynamicScatter.svelte`, () => {
     const controls_grid = document.querySelector(`.controls-grid`)
     expect(controls_grid).toBeDefined()
 
-    // Check that log scale checkboxes are rendered (expect 4 initially)
+    // Check that log-scale checkboxes are rendered in the controls grid
+    // (detailed checkbox state validation is in "regression tests for default values")
     const checkboxes = document.querySelectorAll<HTMLInputElement>(
-      `input[type="checkbox"]`,
+      `.controls-grid input[type="checkbox"]`,
     )
-    expect(checkboxes.length).toBe(7)
-    // Check initial checked state (defaults: x=date_added, y=F1, color=model_params)
-    // Log default state: x=false, y=false, color=true
-    expect(checkboxes[0].checked).toBe(true) // x: date_added (log enabled)
-    expect(checkboxes[1].checked).toBe(true) // y: F1
-    expect(checkboxes[2].checked).toBe(true) // color: model_params
-    expect(checkboxes[3].checked).toBe(false) // x: date_added (log disabled)
-    // Check initial disabled state for date_added
-    expect(checkboxes[1].disabled).toBe(false) // y: CPS (log disabled due to missing data)
-    expect(checkboxes[2].disabled).toBe(false) // color: F1 (log disabled due to small range)
+    expect(checkboxes.length).toBe(4) // 4 checkboxes: x-axis log, y-axis log, color log, size log
 
     // Check that the scatter plot container is rendered
     const plot_container = document.querySelector(`div.bleed-1400[style]`)
@@ -180,9 +167,7 @@ describe(`DynamicScatter.svelte`, () => {
         props: { models: mock_models },
       })
 
-      const settings_button = document.querySelector<HTMLButtonElement>(
-        `.settings-toggle`,
-      )
+      const settings_button = doc_query<HTMLButtonElement>(`.settings-toggle`)
       let extra_controls = document.querySelector(pane_selector)
 
       // 1. Initial state: Controls hidden (element may exist but be hidden)
@@ -220,9 +205,7 @@ describe(`DynamicScatter.svelte`, () => {
         props: { models: mock_models },
       })
 
-      const settings_button = document.querySelector<HTMLButtonElement>(
-        `.settings-toggle`,
-      )
+      const settings_button = doc_query<HTMLButtonElement>(`.settings-toggle`)
       let extra_controls = doc_query<HTMLElement>(pane_selector)
 
       // 1. Show controls
@@ -248,9 +231,7 @@ describe(`DynamicScatter.svelte`, () => {
         props: { models: mock_models },
       })
 
-      const settings_button = document.querySelector<HTMLButtonElement>(
-        `.settings-toggle`,
-      )
+      const settings_button = doc_query<HTMLButtonElement>(`.settings-toggle`)
       await settings_button?.click() // Show controls
 
       const extra_controls = doc_query(pane_selector)
@@ -353,7 +334,7 @@ describe(`DynamicScatter.svelte`, () => {
       expect(controls_grid?.querySelectorAll(`[role="listbox"]`)).toHaveLength(4)
 
       // Open extra controls and test all defaults
-      document.querySelector<HTMLButtonElement>(`.settings-toggle`)?.click()
+      doc_query<HTMLButtonElement>(`.settings-toggle`)?.click()
       const pane = doc_query(pane_selector)
 
       // Test all checkbox defaults (these often regress)

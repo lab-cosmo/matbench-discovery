@@ -4,13 +4,11 @@ Script for testing predictions of a trained Nequip model on the WBM test dataset
 Copied from the 7net script here:
 https://github.com/janosh/matbench-discovery/blob/main/models/sevennet/test_sevennet.py
 Then refactored for nequip and SLURM on the Frontier HPC
-(allowing parallelisation over many GPUs/nodes).
+(allowing parallelization over many GPUs/nodes).
 """
 
-# uses matbench-discovery matbench-discovery commit ID 012ccfe,
-# k_srme commit ID 0269a946, pymatviz v0.15.1
+# uses commits matbench-discovery 012ccfe, k_srme commit 0269a946, pymatviz v0.15.1
 
-import contextlib
 import os
 import warnings
 from glob import glob
@@ -32,11 +30,13 @@ from matbench_discovery import timestamp
 from matbench_discovery.data import DataFiles, as_dict_handler, ase_atoms_from_zip
 from matbench_discovery.enums import Task
 
-with contextlib.suppress(ImportError):
-    # OpenEquivariance/CuEquivariance libraries need to be loaded to allow
-    # their use in ASE calculators, if model was compiled with these accelerations
-    # (see NequIP/Allegro docs), so here we try to import them in case models were
-    # compiled with these settings
+try:  # OpenEquivariance/CuEquivariance libraries need to be loaded to allow their use
+    # in ASE calculators, if model was compiled with these accelerations (see
+    # NequIP/Allegro docs), so here we try to import them in case models were compiled
+    # with these settings
+    import cuequivariance_torch  # noqa: F401
+    import openequivariance  # noqa: F401
+except ImportError:
     pass
 
 
@@ -46,11 +46,11 @@ smoke_test = False  # True
 model_name = "nequip-0"
 task_type = Task.IS2RE
 ase_optimizer = "GOQN"  # faster than "FIRE" from tests, gives the same results;
-# see SI of https:/doi.org/10.1088/2515-7655/ade916
+# see SI of https://doi.org/10.1088/2515-7655/ade916
 ase_filter: Literal["frechet", "exp"] = "frechet"  # recommended filter
 
 max_steps = 500
-force_max = 0.05  # Run until the forces are smaller than this in eV/A
+force_max = 0.005  # Run until the forces are smaller than this in eV/A
 
 slurm_nodes = int(os.getenv("SLURM_NNODES", "1"))
 slurm_tasks_per_node = int(os.getenv("SLURM_NTASKS_PER_NODE", "1"))
@@ -70,13 +70,13 @@ slurm_array_job_id = os.getenv("SLURM_ARRAY_JOB_ID", os.getenv("SLURM_JOBID", "d
 # slurm_array_task_id = 104
 # slurm_array_task_count = 128
 
-matching_files = glob(f"{compile_path}")
+matching_files = glob(compile_path)
 if len(matching_files) == 1:
     compiled_model_file = next(iter(matching_files))
-elif os.path.exists(f"{compile_path}"):
-    compiled_model_file = f"{compile_path}"
+elif os.path.isfile(compile_path):
+    compiled_model_file = compile_path
 else:
-    raise FileNotFoundError(f"No compiled model file was not found at {compile_path}!")
+    raise FileNotFoundError(f"Compiled model file not found at {compile_path}!")
 
 os.makedirs(out_dir := "./results", exist_ok=True)
 out_path = f"{out_dir}/{model_name}-{slurm_array_task_id:>03}.json.gz"
@@ -101,9 +101,8 @@ with warnings.catch_warnings():
 # %%
 print(f"Read data from {data_path}")
 atoms_list = ase_atoms_from_zip(data_path)
-atoms_list = sorted(
-    atoms_list, key=len
-)  # sort by size to get roughly even distribution of comp cost across GPUs
+# sort by size to get roughly even distribution of comp cost across GPUs
+atoms_list = sorted(atoms_list, key=len)
 
 if slurm_array_job_id == "debug":  # if running a quick smoke test
     if smoke_test:
@@ -111,9 +110,8 @@ if slurm_array_job_id == "debug":  # if running a quick smoke test
     else:
         pass
 elif slurm_array_task_count > 1:
-    atoms_list = atoms_list[
-        slurm_array_task_id::slurm_array_task_count
-    ]  # even distribution of rough comp cost, based on size
+    # even distribution of rough comp cost, based on size
+    atoms_list = atoms_list[slurm_array_task_id::slurm_array_task_count]
 
 relax_results: dict[str, dict[str, Any]] = {}
 
@@ -146,17 +144,16 @@ for atoms in tqdm(atoms_list, desc="Relaxing"):
         atoms.calc = calculator
         if max_steps > 0:
             atoms = filter_cls(atoms)
-            with optim_cls(atoms, logfile="/dev/null") as optimizer:
+            with optim_cls(atoms, logfile=None) as optimizer:
                 for _ in optimizer.irun(fmax=force_max, steps=max_steps):
-                    forces = atoms.get_forces()
-                    if np.max(np.linalg.norm(forces, axis=1)) > 1e6:
-                        raise RuntimeError(
-                            "Forces are exorbitant, exploding relaxation!"
-                        )
+                    f_norm = np.linalg.norm(atoms.get_forces(), axis=1).max()
+                    if f_norm > 1e6:
+                        raise RuntimeError("Force divergence detected")
 
         energy = atoms.get_potential_energy()  # relaxed energy
         # if max_steps > 0, atoms is wrapped by filter_cls, so extract with getattr
-        relaxed_struct = AseAtomsAdaptor.get_structure(getattr(atoms, "atoms", atoms))
+        unwrapped = atoms.atoms if hasattr(atoms, "atoms") else atoms
+        relaxed_struct = AseAtomsAdaptor.get_structure(unwrapped)
         relax_results[mat_id] = {"structure": relaxed_struct, "energy": energy}
     except Exception as exc:
         print(f"Failed to relax {mat_id}: {exc!r}")

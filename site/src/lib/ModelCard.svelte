@@ -7,14 +7,6 @@
   import type { HTMLAttributes } from 'svelte/elements'
   import { fade, slide } from 'svelte/transition'
 
-  interface Props extends HTMLAttributes<HTMLElementTagNameMap[`section`]> {
-    model: ModelData
-    metrics: readonly Label[]
-    sort_by: keyof ModelData
-    show_details?: boolean
-    metrics_style?: string
-    title_style?: string
-  }
   let {
     model,
     metrics,
@@ -23,7 +15,14 @@
     metrics_style = ``,
     title_style = ``,
     ...rest
-  }: Props = $props()
+  }: HTMLAttributes<HTMLElementTagNameMap[`section`]> & {
+    model: ModelData
+    metrics: readonly Label[]
+    sort_by: keyof ModelData
+    show_details?: boolean
+    metrics_style?: string
+    title_style?: string
+  } = $props()
 
   let { model_name, model_key, model_params, training_set } = $derived(model)
   let all_metrics = $derived({
@@ -176,10 +175,10 @@
   <ul>
     <!-- hide run time if value is 0 (i.e. not available) -->
     {#each metrics as metric (JSON.stringify(metric))}
-      {@const { key, label, short, unit } = metric}
+      {@const { key, label, unit } = metric}
       {@const value = all_metrics[key as keyof typeof all_metrics] as number}
       <li class:active={sort_by == key}>
-        <label for={key}>{@html short ?? label ?? key}</label>
+        <label for={key}>{@html label ?? key}</label>
         <strong>{isNaN(value) ? `n/a` : format_num(value)}
           <small>{unit ?? ``}</small></strong>
       </li>

@@ -2,6 +2,7 @@
   import { calculate_days_ago, DATASETS, Icon, IconList, PtableInset } from '$lib'
   import {
     discovery_task_tooltips,
+    model_type_tooltips,
     openness_tooltips,
     targets_tooltips,
   } from '$lib/metrics'
@@ -15,10 +16,7 @@
   import { click_outside, tooltip } from 'svelte-multiselect/attachments'
   import per_elem_each_errors from '../per-element-each-errors.json'
 
-  interface Props {
-    data: { model: ModelData }
-  }
-  let { data }: Props = $props()
+  let { data }: { data: { model: ModelData } } = $props()
 
   let color_scale = $state<D3InterpolateName>(`interpolateViridis`)
   let active_element: ChemicalElement | null = $state(null)
@@ -328,7 +326,7 @@
       <ul>
         {#each [
           [`Model Version`, model.model_version],
-          [`Model Type`, model.model_type],
+          [`Model Type`, model.model_type, model_type_tooltips[model.model_type]],
           [`Targets`, model.targets, targets_tooltips[model.targets]],
           [`Openness`, model.openness, openness_tooltips[model.openness]],
           [
@@ -348,7 +346,11 @@
         }
           <li {title} {@attach tooltip()}>
             {key}
-            <strong>{value}</strong>
+            {#if key === `Targets`}
+              <strong>{@html value.replace(/_(.)/g, `<sub>$1</sub>`)}</strong>
+            {:else}
+              <strong>{value}</strong>
+            {/if}
           </li>
         {/each}
       </ul>

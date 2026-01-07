@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { HeatmapTable, Icon, IconList, TableControls } from '$lib'
+  import { Icon, IconList, TableControls } from '$lib'
   import { metric_better_as } from '$lib/metrics'
   import type {
     CellSnippetArgs,
@@ -7,7 +7,9 @@
     Label,
     LinkData,
     ModelData,
+    SortDir,
   } from '$lib/types'
+  import { HeatmapTable } from 'matterviz'
   import type { Snippet } from 'svelte'
   import { click_outside } from 'svelte-multiselect/attachments'
   import type { HTMLAttributes } from 'svelte/elements'
@@ -16,20 +18,6 @@
   import { assemble_row_data } from './metrics'
   import { heatmap_class } from './table-export'
 
-  interface Props extends HTMLAttributes<HTMLTableElement> {
-    discovery_set?: DiscoverySet
-    model_filter?: (model: ModelData) => boolean
-    col_filter?: (col: Label) => boolean
-    show_energy_only?: boolean
-    show_non_compliant?: boolean
-    show_heatmap?: boolean
-    show_compliant?: boolean
-    show_selected_only?: boolean
-    active_files?: { name: string; url: string }[]
-    active_model_name?: string
-    pred_files_dropdown_pos?: { x: number; y: number; name: string } | null
-    selected_models?: Set<string>
-  }
   let {
     discovery_set = $bindable(`unique_prototypes`),
     model_filter = $bindable(() => true),
@@ -43,8 +31,25 @@
     active_model_name = $bindable(``),
     pred_files_dropdown_pos = $bindable(null),
     selected_models = $bindable(new SvelteSet<string>()),
+    column_order = $bindable([]),
+    sort = $bindable({ column: `CPS`, dir: `desc` }),
     ...rest
-  }: Props = $props()
+  }: HTMLAttributes<HTMLDivElement> & {
+    discovery_set?: DiscoverySet
+    model_filter?: (model: ModelData) => boolean
+    col_filter?: (col: Label) => boolean
+    show_energy_only?: boolean
+    show_non_compliant?: boolean
+    show_heatmap?: boolean
+    show_compliant?: boolean
+    show_selected_only?: boolean
+    active_files?: { name: string; url: string }[]
+    active_model_name?: string
+    pred_files_dropdown_pos?: { x: number; y: number; name: string } | null
+    selected_models?: Set<string>
+    column_order?: string[]
+    sort?: { column: string; dir: SortDir }
+  } = $props()
 
   const { model_name, training_set, targets, date_added, links } = METADATA_COLS
   const { checkpoint_license, code_license, org } = METADATA_COLS
@@ -158,37 +163,38 @@
 
 {#snippet links_cell({ val }: CellSnippetArgs)}
   {@const links = val as LinkData}
-  {#each Object.entries(links).filter(([key]) => key !== `pred_files`) as
-    [key, link]
-    (JSON.stringify(link))
-  }
-    {#if `url` in link &&
+  {#if links}
+    {#each Object.entries(links).filter(([key]) => key !== `pred_files`) as
+      [key, link]
+      (JSON.stringify(link))
+    }
+      {#if `url` in link &&
     ![`missing`, `not available`, ``, null, undefined].includes(link.url)}
-      <a href={link.url} target="_blank" rel="noopener noreferrer" title={link.title}>
-        <Icon icon={link.icon} />
-      </a>
-    {:else}
-      <span title="{key} not available">
-        <Icon icon="Unavailable" />
-      </span>
+        <a href={link.url} target="_blank" rel="noopener noreferrer" title={link.title}>
+          <Icon icon={link.icon} />
+        </a>
+      {:else}
+        <span title="{key} not available">
+          <Icon icon="Unavailable" />
+        </span>
+      {/if}
+    {/each}
+    {#if links.pred_files}
+      <button
+        class="pred-files-btn"
+        aria-label="Download model prediction files"
+        onclick={(event) => show_dropdown(event, links)}
+      >
+        <Icon icon="Graph" />
+      </button>
     {/if}
-  {/each}
-  {#if links?.pred_files}
-    <button
-      class="pred-files-btn"
-      aria-label="Download model prediction files"
-      onclick={(event) => show_dropdown(event, links)}
-    >
-      <Icon icon="Graph" />
-    </button>
   {/if}
 {/snippet}
 
 <HeatmapTable
   data={metrics_data}
   {columns}
-  initial_sort_column="CPS"
-  initial_sort_direction="desc"
+  bind:sort
   sort_hint="Click on column headers to sort table rows"
   special_cells={{
     Links: links_cell as unknown as Snippet<[CellSnippetArgs]>,
@@ -196,6 +202,7 @@
   }}
   default_num_format=".3f"
   bind:show_heatmap
+  bind:column_order
   {heatmap_class}
   onrowdblclick={(event, row) => {
     const model_name = String((row as ModelData).Model)
@@ -211,6 +218,7 @@
       bind:show_compliant
       bind:show_non_compliant
       bind:show_selected_only
+      show_energy_only_toggle
       {selected_count}
     />
   {/snippet}

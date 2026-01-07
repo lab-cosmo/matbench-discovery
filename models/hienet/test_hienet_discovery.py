@@ -60,7 +60,7 @@ os.makedirs(out_dir := "./results", exist_ok=True)
 
 task_type = Task.IS2RE
 ase_optimizer = "FIRE"
-os.environ["CUDA_VISIBLE_DEVICES"] = f"{args.gpu}"
+os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu)
 device = "cpu"  # "cuda" if torch.cuda.is_available() else "cpu"
 ase_filter: Literal["frechet", "exp"] = "frechet"
 
@@ -97,11 +97,12 @@ for atoms in tqdm(atoms_list, desc="Relaxing"):
 
         if max_steps > 0:
             atoms = filter_cls(atoms)
-            optimizer = optim_cls(atoms, logfile="/dev/null")
+            optimizer = optim_cls(atoms, logfile=None)
             optimizer.run(fmax=force_max, steps=max_steps)
         energy = atoms.get_potential_energy()  # relaxed energy
         # if max_steps > 0, atoms is wrapped by filter_cls, so extract with getattr
-        relaxed_struct = AseAtomsAdaptor.get_structure(getattr(atoms, "atoms", atoms))
+        unwrapped = atoms.atoms if hasattr(atoms, "atoms") else atoms
+        relaxed_struct = AseAtomsAdaptor.get_structure(unwrapped)
         relax_results[mat_id] = {"structure": relaxed_struct, "energy": energy}
     except Exception as exc:
         print(f"Failed to relax {mat_id}: {exc!r}")

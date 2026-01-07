@@ -112,7 +112,7 @@ run_params = {
     "force_max": force_max,
     "ase_optimizer": ase_optimizer,
     "device": device,
-    Key.model_params: count_parameters(mace_calc.models[0]),
+    Key.model_params: count_parameters(mace_calc.models[0]),  # type: ignore[arg-type]
     "model_name": model_name,
     "dtype": dtype,
     "cell_filter": "FrechetCellFilter",
@@ -135,7 +135,7 @@ for atoms in tqdm(deepcopy(atoms_list), desc="Relaxing"):
         atoms.calc = mace_calc
         if max_steps > 0:
             filtered_atoms = FrechetCellFilter(atoms)
-            optimizer = optim_cls(filtered_atoms, logfile="/dev/null")
+            optimizer = optim_cls(filtered_atoms, logfile=None)
 
             if record_traj:
                 coords, lattices, energies = [], [], []

@@ -6,7 +6,7 @@ import yaml
 
 from matbench_discovery import DATA_DIR, ROOT
 from matbench_discovery.enums import Model
-from matbench_discovery.models import model_is_compliant
+from matbench_discovery.models import model_is_compliant, validate_model_metadata
 
 with open(f"{DATA_DIR}/datasets.yml", encoding="utf-8") as file:
     DATASETS = yaml.safe_load(file)
@@ -145,7 +145,7 @@ def test_model_missing_invalid_inputs(
     input_value: str | int | None | list | dict,
 ) -> None:
     """Test that _missing_ method returns None for invalid inputs."""
-    assert Model._missing_(input_value) is None  # type: ignore[arg-type]
+    assert Model._missing_(input_value) is None
 
 
 @pytest.mark.parametrize(
@@ -162,6 +162,43 @@ def test_model_missing_invalid_inputs(
     ],
 )
 def test_model_is_compliant(model: Model, is_compliant: bool) -> None:
+    """Test model compliance checking."""
     assert model.is_compliant is is_compliant
     # Also test the function directly for consistency
     assert model_is_compliant(model.metadata) is is_compliant
+
+
+@pytest.mark.parametrize(
+    "func, metadata, error_type, error_match",
+    [
+        # model_is_compliant errors
+        (
+            model_is_compliant,
+            {"openness": "OSOD", "training_set": "MPtrj", "model_name": "test"},
+            TypeError,
+            "expected list of training sets",
+        ),
+        # validate_model_metadata errors
+        (
+            lambda m: validate_model_metadata(m, "test.yml"),
+            {"status": "incomplete"},
+            ValueError,
+            "has status != 'complete'",
+        ),
+        (
+            lambda m: validate_model_metadata(m, "test.yml"),
+            {"model_type": "InvalidType"},
+            ValueError,
+            "is not a valid ModelType",
+        ),
+    ],
+)
+def test_model_validation_errors(
+    func: object,
+    metadata: dict[str, str],
+    error_type: type[Exception],
+    error_match: str,
+) -> None:
+    """Test model validation functions raise appropriate errors."""
+    with pytest.raises(error_type, match=error_match):
+        func(metadata)  # type: ignore[operator]
