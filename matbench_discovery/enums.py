@@ -370,6 +370,9 @@ class Model(Files, base_dir=f"{ROOT}/models"):
     # PET
     pet = auto(), "pet/pet.yml"
 
+    # PET
+    pet = auto(), "pet/pet.yml"
+
     # --- Model Combos
     # # CHGNet-relaxed structures fed into MEGNet for formation energy prediction
     # chgnet_megnet = "chgnet/2023-03-06-chgnet-0.2.0-wbm-IS2RE.csv.gz"

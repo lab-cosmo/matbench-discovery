@@ -1,294 +1,163 @@
+"""
+Script for generating the predicted kappa-SRME values for the 103 structures in the
+PhononDB-PBE dataset, using a PET model.
+
+Templated from https://github.com/janosh/matbench-discovery/blob/main/models/nequip/test_nequip_kappa.py
+"""
+
 import json
 import os
-import traceback
 import warnings
-from copy import deepcopy
+import traceback
 from datetime import datetime
 from importlib.metadata import version
 from typing import Any, Literal
 
+import ase.io
 import pandas as pd
 import torch
-from ase.constraints import FixSymmetry
-from ase.filters import FrechetCellFilter
-from ase.io import read
-from ase.optimize import FIRE, LBFGS
-from ase.optimize.optimize import Optimizer
-from ase.spacegroup.symmetrize import check_symmetry
-from metatomic.torch import load_atomistic_model
-from metatomic.torch.ase_calculator import MetatomicCalculator  #, O3AveragedCalculator
-from phono3py.api_phono3py import Phono3py
-from phonopy.structure.atoms import PhonopyAtoms
 from pymatviz.enums import Key
 from tqdm import tqdm
 
-import matbench_discovery.phonons.thermal_conductivity as ltc
-from matbench_discovery import phonons
-from matbench_discovery.enums import DataFiles
+from matbench_discovery import today
+from matbench_discovery.data import DataFiles
+from matbench_discovery.phonons import KappaCalcParams
 from matbench_discovery.metrics.phonons import calc_kappa_metrics_from_dfs
+from calc_kappa import calc_kappa_for_structure
 
-warnings.filterwarnings("ignore", category=DeprecationWarning, module="spglib")
-warnings.filterwarnings("ignore", category=FutureWarning, module="torch")
+from metatomic.torch.ase_calculator import MetatomicCalculator
+from metatomic.torch import load_atomistic_model
 
 # Model configuration
+module_dir = os.path.dirname(__file__)
 model_name = "pet"
-model_variant = "pet"
+model_variant = "oam-1epoch-55"
+precision = "float64"
 device = "cuda" if torch.cuda.is_available() else "cpu"
-max_num_neighbors = 120
+dtype = torch.float64 if precision == "float64" else torch.float32
+model = load_atomistic_model(f"{model_name}-{model_variant}.pt")
+model.capabilities().dtype = precision
+model = model.to(dtype=dtype, device=device)
+calc = MetatomicCalculator(model, device=device, non_conservative=False)
+batch_size = 1
 
 # Relaxation parameters
-ase_optimizer: Literal["FIRE", "LBFGS"] = "FIRE"
-max_steps = 1000
-force_max = 1e-4  # In eV/Å
-symprec = 1e-5
-displacement_distance = 0.03  # Displacement distance for phono3py
-print(displacement_distance)
-enforce_relax_symm = True
-ignore_broken_symm = False
-ignore_imaginary_freqs = False
-is_plusminus = True
-temperatures = [300]  # Temperatures to calculate conductivity at in Kelvin
+ase_optimizer = "FIRE"
+ase_filter: Literal["frechet", "exp"] = "frechet"  # recommended filter
+max_steps = 300
+fmax = 1e-4  # Run until the forces are smaller than this in eV/A
+
+# Symmetry parameters
+symprec = 1e-5  # symmetry precision for enforcing relaxation and conductivity calcs
+enforce_relax_symm = True  # Enforce symmetry with during relaxation if broken
+# Conductivity to be calculated if symmetry group changed during relaxation
+conductivity_broken_symm = False
 save_forces = True  # Save force sets to file
-deterministic = False
-precision = "float64"
+temperatures: list[float] = [300]
+displacement_distance = 0.03
+ignore_imaginary_freqs = True
 
-task_type = "LTC"  # lattice thermal conductivity
-job_name = (
-    f"{model_name}-phononDB-{task_type}-{ase_optimizer}_force{force_max}_sym{symprec}"
+# Task splitting:
+slurm_nodes = int(os.getenv("SLURM_NNODES", "1"))
+slurm_tasks_per_node = int(os.getenv("SLURM_NTASKS_PER_NODE", "1"))
+slurm_array_task_count = int(os.getenv("NGPUS", slurm_nodes * slurm_tasks_per_node))
+slurm_array_task_id = int(
+    os.getenv(
+        "TASK_ID", os.getenv("SLURM_ARRAY_TASK_ID", os.getenv("SLURM_PROCID", "0"))
+    )
 )
-out_dir = f"./kappa_results_{model_variant}"
+slurm_array_job_id = os.getenv("SLURM_ARRAY_JOB_ID", os.getenv("SLURM_JOBID", "debug"))
+
+# Note that we can also manually override some slurm IDs here if we need to rerun just a
+# single subset that failed on a previous eval run, for any reason, setting job_id to 0,
+# task_id to the failed task, and task_count to match
+# whatever the previous task count was (to ensure the same data splitting):
+# slurm_array_job_id = 0
+# slurm_array_task_id = 104
+# slurm_array_task_count = 128
+
+
+job_name = f"kappa-103-{ase_optimizer}-dist={displacement_distance}-{fmax=}-{symprec=}"
+out_dir = os.getenv("SBATCH_OUTPUT", f"{module_dir}/{model_name}/{today}-{job_name}")
 os.makedirs(out_dir, exist_ok=True)
-out_path = f"{out_dir}/{job_name}.json.gz"
-force_sets_path = f"{out_dir}/force-sets.json.gz"
+timestamp = f"{datetime.now().astimezone():%Y-%m-%d@%H-%M-%S}"
+print(f"\nJob {job_name} with {model_name} started {timestamp}")
 
-timestamp = f"{datetime.now().astimezone():%Y-%m-%d %H:%M:%S}"
-atoms_list = read(DataFiles.phonondb_pbe_103_structures.path, index=":")
+atoms_list = ase.io.read(DataFiles.phonondb_pbe_103_structures.path, index=":")
+# sort by size to get roughly even distribution of comp cost across GPUs
+atoms_list = sorted(atoms_list, key=len)
+if slurm_array_task_count > 1:
+    # even distribution of rough comp cost, based on size
+    atoms_list = atoms_list[slurm_array_task_id::slurm_array_task_count]
 
-# Limit to only the first few structures
-atoms_list = atoms_list[:10]
-
-run_params = {
-    "timestamp": timestamp,
-    "model_name": model_name,
-    "model_variant": model_variant,
-    "device": device,
-    "versions": {dep: version(dep) for dep in ("numpy", "torch")},
+# Save run parameters
+kappa_params: KappaCalcParams = {
     "ase_optimizer": ase_optimizer,
-    "cell_filter": "FrechetCellFilter",
+    "ase_filter": ase_filter,
     "max_steps": max_steps,
-    "force_max": force_max,
+    "force_max": fmax,
     "symprec": symprec,
     "enforce_relax_symm": enforce_relax_symm,
-    "ignore_broken_symm": ignore_broken_symm,
-    "ignore_imaginary_freqs": ignore_imaginary_freqs,
     "temperatures": temperatures,
+    "out_dir": out_dir,
     "displacement_distance": displacement_distance,
-    "is_plusminus": is_plusminus,
-    "task_type": task_type,
-    "job_name": job_name,
-    "n_structures": len(atoms_list),
-    "max_num_neighbors": max_num_neighbors,
-    "precision": precision,
-    "deterministic": deterministic,
+    "save_forces": save_forces,
 }
+run_params = dict(
+    **kappa_params,
+    n_structures=len(atoms_list),
+    struct_data_path=DataFiles.phonondb_pbe_103_structures.path,
+    versions={dep: version(dep) for dep in ("numpy", "torch", "metatomic")},
+)
 
 with open(f"{out_dir}/run_params.json", mode="w") as file:
     json.dump(run_params, file, indent=4)
 
-print(f"Results will be saved to {out_dir}")
-print(f"Using {device=}")
-
-device = "cuda" if torch.cuda.is_available() else "cpu"
-dtype = torch.float64 if precision == "float64" else torch.float32
-model = load_atomistic_model("pet-oam-1epoch-55.pt")
-model.capabilities().dtype = "float64"
-model.to(dtype=torch.float64, device=device)
-calc = MetatomicCalculator(model, device=device, non_conservative=False)
-# calc = O3AveragedCalculator(calc, l_max=3, batch_size=4)
-
-if deterministic:
-    torch.use_deterministic_algorithms(mode=True)
-
-
-# Set up the optimizer class from string
-optim_cls: type[Optimizer] = {"FIRE": FIRE, "LBFGS": LBFGS}[ase_optimizer]
-
-force_results: dict[str, dict[str, Any]] = {}
+# Process results as they complete
 kappa_results: dict[str, dict[str, Any]] = {}
-prog_bar = True  # Enable progress bar
+force_results: dict[str, dict[str, Any]] = {}
 
-tqdm_bar = tqdm(
-    enumerate(atoms_list), desc="Conductivity calculation: ", disable=not prog_bar
-)
+for idx, atoms in enumerate(tqdm(atoms_list, desc="Calculating kappa...")):
+    mat_id, result_dict, force_dict = calc_kappa_for_structure(
+        atoms=atoms,
+        calculator=calc,
+        batch_size=batch_size,
+        is_plusminus=True,
+        ignore_imaginary_freqs=ignore_imaginary_freqs,
+        formula_getter=lambda a: a.info.get("name", a.get_chemical_formula()),
+        **kappa_params,
+        task_id=idx,
+    )
+    kappa_results[mat_id] = result_dict
+    if force_dict is not None:
+        force_results[mat_id] = force_dict
 
-for idx, atoms in tqdm_bar:
-    # Use the same ID field as in original script
-    mat_id = atoms.info.get(Key.mat_id, f"id-{len(kappa_results)}")
-    init_info = deepcopy(atoms.info)
-    formula = atoms.info.get("name", "unknown")
+    # Save intermediate results
+    df_kappa = pd.DataFrame(kappa_results).T
+    df_kappa.index.name = Key.mat_id
+    df_kappa.reset_index(drop=True).to_json(
+        f"{out_dir}/{slurm_array_task_id}_kappa.json.gz"
+    )
+    df_kappa.to_json(f"{out_dir}/{slurm_array_task_id}_kappa.json.gz")
 
-    tqdm_bar.set_postfix_str(mat_id, refresh=True)
-
-    # Initialize info dictionary with material details
-    info_dict = {
-        "name": formula,
-        "errors": [],
-        "error_traceback": [],
-    }
-
-    # Initialize variables that might be needed in error handling
-    relax_dict = {"max_stress": None, "reached_max_steps": False}
-    force_results_item = None
-
-    try:
-        # Relaxation phase
-        atoms.calc = calc
-        if enforce_relax_symm:
-            atoms.set_constraint(FixSymmetry(atoms))
-            filtered_atoms = FrechetCellFilter(atoms, mask=[True] * 3 + [False] * 3)
-        else:
-            filtered_atoms = FrechetCellFilter(atoms)
-
-        optimizer = optim_cls(
-            filtered_atoms,
-            logfile=f"{out_dir}/relax_{idx}.log",
+    if save_forces:
+        df_force = pd.DataFrame(force_results).T
+        df_force = pd.concat([df_kappa, df_force], axis=1)
+        df_force.index.name = Key.mat_id
+        df_force.reset_index(drop=True).to_json(
+            f"{out_dir}/{slurm_array_task_id}_force-sets.json.gz"
         )
 
-        pre_sym_group = check_symmetry(atoms, symprec).number
-        optimizer.run(fmax=force_max, steps=max_steps)
-        post_sym_group = check_symmetry(atoms, symprec).number
-
-        reached_max_steps = optimizer.nsteps >= max_steps
-        if reached_max_steps:
-            print(f"Material {mat_id=} reached {max_steps=} during relaxation")
-
-        # Maximum residual stress component
-        max_stress = atoms.get_stress().reshape((2, 3), order="C").max(axis=1)
-
-        atoms.calc = None
-        atoms.constraints = None
-        atoms.info = init_info | atoms.info
-
-        relax_dict = {
-            "max_stress": max_stress,
-            "reached_max_steps": reached_max_steps,
-            "broken_symmetry": pre_sym_group != post_sym_group,
-        }
-
-        if not ignore_broken_symm and pre_sym_group != post_sym_group:
-            raise ValueError(
-                f"Symmetry group changed from {pre_sym_group} to {post_sym_group}"
-            )
-
-    except Exception as exc:
-        warnings.warn(f"Failed to relax {formula=}, {mat_id=}: {exc!r}", stacklevel=2)
-        traceback.print_exc()
-        info_dict["errors"].append(f"RelaxError: {exc!r}")
-        info_dict["error_traceback"].append(traceback.format_exc())
-        kappa_results[mat_id] = info_dict | relax_dict
-        continue
-
-    # Force constants calculation
-    try:
-        unit_cell = PhonopyAtoms(
-            atoms.symbols, cell=atoms.cell, positions=atoms.positions
-        )
-        ph3 = Phono3py(
-            unitcell=unit_cell,
-            supercell_matrix=atoms.info["fc3_supercell"],
-            phonon_supercell_matrix=atoms.info["fc2_supercell"],
-            primitive_matrix="auto",
-            symprec=symprec,
-        )
-        ph3.mesh_numbers = atoms.info["q_point_mesh"]
-
-        # Generate displacements in both positive and negative direction even if
-        # symmetrically equivalent (different from other models!)
-        ph3.generate_displacements(
-            distance=displacement_distance, is_plusminus=is_plusminus
-        )
-        # Calculate force constants and frequencies
-        ph3, fc2_set, freqs = ltc.get_fc2_and_freqs(
-            ph3, calculator=calc, pbar_kwargs={"disable": True}
-        )
-
-        # Check for imaginary frequencies
-        has_imaginary_freqs = phonons.check_imaginary_freqs(freqs)
-        freqs_dict = {
-            Key.has_imag_ph_modes: has_imaginary_freqs,
-            Key.ph_freqs: freqs,
-        }
-
-        # Determine if we should continue calculating conductivity
-        continue_computing_conductivity = (
-            not has_imaginary_freqs or ignore_imaginary_freqs
-        )
-
-        if continue_computing_conductivity:
-            fc3_set = ltc.calculate_fc3_set(
-                ph3,
-                calculator=calc,
-                pbar_kwargs={"position": idx},
-            )
-            ph3.produce_fc3(symmetrize_fc3r=True)
-        else:
-            fc3_set = []
-
-        if save_forces:
-            force_results_item = {"fc2_set": fc2_set, "fc3_set": fc3_set}
-
-        if not continue_computing_conductivity:
-            kappa_results[mat_id] = info_dict | relax_dict | freqs_dict
-            warnings.warn(
-                f"Skipping {mat_id} due to imaginary frequencies", stacklevel=2
-            )
-            if force_results_item is not None:
-                force_results[mat_id] = force_results_item
-            continue
-
-    except Exception as exc:
-        warnings.warn(f"Failed to calculate force sets {mat_id}: {exc!r}", stacklevel=2)
-        traceback.print_exc()
-        info_dict["errors"].append(f"ForceConstantError: {exc!r}")
-        info_dict["error_traceback"].append(traceback.format_exc())
-        kappa_results[mat_id] = info_dict | relax_dict
-        continue
-
-    # Thermal conductivity calculation
-    try:
-        ph3, kappa_dict, _cond = ltc.calculate_conductivity(
-            ph3, temperatures=temperatures
-        )
-        kappa_results[mat_id] = info_dict | relax_dict | freqs_dict | kappa_dict
-        if force_results_item is not None:
-            force_results[mat_id] = force_results_item
-    except Exception as exc:
-        warnings.warn(
-            f"Failed to calculate conductivity {mat_id}: {exc!r}", stacklevel=2
-        )
-        traceback.print_exc()
-        info_dict["errors"].append(f"ConductivityError: {exc!r}")
-        info_dict["error_traceback"].append(traceback.format_exc())
-        kappa_results[mat_id] = info_dict | relax_dict | freqs_dict
-        if force_results_item is not None:
-            force_results[mat_id] = force_results_item
-
-# Save results
-df_kappa = pd.DataFrame(kappa_results).T
-df_kappa.index.name = Key.mat_id
-df_kappa.reset_index().to_json(out_path)
-print(f"Saved kappa results to {out_path}")
-
-if save_forces and force_results:
-    df_force = pd.DataFrame(force_results).T
-    df_force = pd.concat([df_kappa[[]].copy(), df_force], axis=1)
-    df_force.index.name = Key.mat_id
-    df_force.reset_index().to_json(force_sets_path)
-    print(f"Saved force sets to {force_sets_path}")
+print(f"\nResults saved to {out_dir!r}")
 
 try:
     print("Computing metrics against reference data...")
-    df_dft = pd.read_json(DataFiles.phonondb_pbe_103_kappa_no_nac.path).set_index("mp_id")
+    df_dft = pd.read_json(DataFiles.phonondb_pbe_103_kappa_no_nac.path).set_index(
+        Key.mat_id
+    )
+    if ignore_imaginary_freqs:
+        # WARNING: setting has_imag_ph_modes to False to compute the metrics anyway
+        df_kappa["has_imag_ph_modes"] = False
     df_ml_metrics = calc_kappa_metrics_from_dfs(df_kappa, df_dft)
     # Compute and print summary metrics
     kappa_sre = df_ml_metrics[Key.sre].mean()
