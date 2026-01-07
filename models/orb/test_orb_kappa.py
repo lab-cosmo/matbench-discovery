@@ -38,7 +38,7 @@ max_num_neighbors = 120
 
 # Relaxation parameters
 ase_optimizer: Literal["FIRE", "LBFGS"] = "FIRE"
-max_steps = 500
+max_steps = 300
 force_max = 1e-4  # In eV/Å
 symprec = 1e-5
 displacement_distance = 0.03  # Displacement distance for phono3py
