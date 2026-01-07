@@ -118,11 +118,6 @@ kappa_results: dict[str, dict[str, Any]] = {}
 force_results: dict[str, dict[str, Any]] = {}
 
 for idx, atoms in enumerate(tqdm(atoms_list, desc="Calculating kappa...")):
-    # #### TODO: remove
-    # if atoms.info["material_id"] not in ["mp-19717", "mp-23231", "mp-22922"]:
-    #     continue
-
-    # ####
     mat_id, result_dict, force_dict = calc_kappa_for_structure(
         atoms=atoms,
         calculator=calc,
