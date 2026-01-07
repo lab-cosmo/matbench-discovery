@@ -30,7 +30,7 @@ def main() -> None:
             df_ml = pd.read_json(model.kappa_103_path).set_index(Key.mat_id)
             df_dft = pd.read_json(
                 DataFiles.phonondb_pbe_103_kappa_no_nac.path
-            ).set_index(Key.mat_id)
+            ).set_index("mp_id")
             df_ml_metrics = phonons.calc_kappa_metrics_from_dfs(df_ml, df_dft)
 
             # Calculate metrics
