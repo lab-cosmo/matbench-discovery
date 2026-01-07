@@ -1,4 +1,9 @@
-# %%
+"""
+Script for geometry optimization and convex hull calculations, using a PET model.
+
+Adapted from the corresponding GRACE script.
+"""
+
 import json
 import os
 import warnings
@@ -17,20 +22,16 @@ from pymatgen.io.ase import AseAtomsAdaptor
 from pymatviz.enums import Key
 from tqdm import tqdm
 
-from matbench_discovery import timestamp, today
+from matbench_discovery import timestamp
 from matbench_discovery.data import as_dict_handler, ase_atoms_from_zip
-from matbench_discovery.enums import DataFiles, Model, Task
+from matbench_discovery.enums import DataFiles, Task
 
 from metatomic.torch.ase_calculator import MetatomicCalculator, SymmetrizedCalculator
-
-__author__ = "Yury Lysogorskiy"
-__date__ = "2025-02-06"
 
 
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 
 
-# %%
 model_name = "pet"
 smoke_test = False
 task_type = Task.IS2RE
@@ -48,7 +49,6 @@ record_traj = False  # has no effect if relax_cell is False
 os.makedirs(out_dir, exist_ok=True)
 
 
-# %%
 # will be set to the job array index value.
 slurm_array_task_id = int(os.getenv("SLURM_ARRAY_TASK_ID", "0"))
 # will be set to the first job ID of the array.
@@ -57,7 +57,7 @@ slurm_array_job_id = os.getenv("SLURM_ARRAY_JOB_ID", "debug")
 out_path = f"{out_dir}/{slurm_array_job_id}-{slurm_array_task_id:>03}.json.gz"
 
 if os.path.isfile(out_path):
-    raise SystemExit(f"{out_path=} already exists, exciting early")
+    raise SystemExit(f"{out_path=} already exists, exiting early")
 
 print(f"{slurm_array_task_id=}")
 print(f"{slurm_array_job_id=}")
@@ -65,7 +65,6 @@ print(f"{slurm_array_task_count=}")
 print(f"{out_dir=}")
 
 
-# %%
 data_path = {
     Task.RS2RE: DataFiles.wbm_relaxed_atoms.path,
     Task.IS2RE: DataFiles.wbm_initial_atoms.path,
@@ -73,11 +72,10 @@ data_path = {
 print(f"\nJob {job_name} started {timestamp}")
 e_pred_col = "pet_energy"
 max_steps = 500
-force_max = 0.05  # Run until the forces are smaller than this in eV/A
+force_max = 0.02  # Run until the forces are smaller than this in eV/A
 checkpoint = ""
-dtype = "float64"
 calc = MetatomicCalculator("pet-oam-1epoch-55.pt", device=device)
-calc = SymmetrizedCalculator(calc, batch_size=16)
+calc = SymmetrizedCalculator(calc, batch_size=16, include_inversion=False)
 
 print(f"Read data from {data_path}")
 atoms_list: list[Atoms] = ase_atoms_from_zip(data_path)
@@ -94,7 +92,6 @@ elif slurm_array_task_count > 1:
     ]
 
 
-# %%
 run_params = {
     "data_path": data_path,
     "versions": {
@@ -108,9 +105,7 @@ run_params = {
     "force_max": force_max,
     "ase_optimizer": ase_optimizer,
     "device": device,
-    # Key.model_params: count_parameters(calc.models[0]),
-    "model_name": model_name,  # Use passed model_name
-    "dtype": dtype,
+    "model_name": model_name,
     "cell_filter": "FrechetCellFilter",
 }
 
@@ -121,10 +116,7 @@ with open(
 ) as file:
     json.dump(run_params, file)
 
-# wandb.init(project="matbench-discovery", name=run_name, config=run_params)
 
-
-# %% time
 relax_results: dict[str, dict[str, Any]] = {}
 optim_cls: Optimizer = {"FIRE": FIRE, "LBFGS": LBFGS}[ase_optimizer]
 atoms_list = sorted(atoms_list, key=lambda at: len(at))
@@ -171,7 +163,6 @@ for atoms in tqdm(deepcopy(atoms_list), desc="Relaxing", mininterval=5):
         continue
 
 
-# %%
 df_out = pd.DataFrame(relax_results).T.add_prefix("pet_")
 df_out.index.name = Key.mat_id
 if not smoke_test:
