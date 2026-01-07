@@ -52,12 +52,10 @@ def get_sym_info_from_structs(
                 f"Expected Structure or Atoms for {struct_key!r}, got {type(struct)}"
             )
         moyo_cell = MoyoAdapter.from_py_obj(struct)
-        try:
-            sym_data = moyopy.MoyoDataset(
-                moyo_cell, symprec=symprec, angle_tolerance=angle_tolerance
-            )
-        except ValueError:
-            continue
+
+        sym_data = moyopy.MoyoDataset(
+            moyo_cell, symprec=symprec, angle_tolerance=angle_tolerance
+        )
 
         sym_ops = sym_data.operations
         hall_symbol_entry = moyopy.HallSymbolEntry(hall_number=sym_data.hall_number)
