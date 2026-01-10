@@ -26,12 +26,13 @@ from matbench_discovery.metrics.phonons import calc_kappa_metrics_from_dfs
 from calc_kappa import calc_kappa_for_structure
 
 from metatomic.torch.ase_calculator import MetatomicCalculator
+from metatomic.torch.ase_calculator import SymmetrizedCalculator
 from metatomic.torch import load_atomistic_model
 
 # Model configuration
 module_dir = os.path.dirname(__file__)
 model_name = "pet"
-model_variant = "oam-1epoch-55"
+model_variant = "oam-xl-v1.0.0"  # get it with `mtt export https://huggingface.co/lab-cosmo/upet/resolve/main/models/pet-oam-xl-v1.0.0.ckpt`
 precision = "float64"
 device = "cuda" if torch.cuda.is_available() else "cpu"
 dtype = torch.float64 if precision == "float64" else torch.float32
@@ -39,6 +40,7 @@ model = load_atomistic_model(f"{model_name}-{model_variant}.pt")
 model.capabilities().dtype = precision
 model = model.to(dtype=dtype, device=device)
 calc = MetatomicCalculator(model, device=device, non_conservative=False)
+calc = SymmetrizedCalculator(calc, batch_size=1, include_inversion=False)
 batch_size = 1
 
 # Relaxation parameters

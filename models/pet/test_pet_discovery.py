@@ -74,7 +74,9 @@ e_pred_col = "pet_energy"
 max_steps = 500
 force_max = 0.02  # Run until the forces are smaller than this in eV/A
 checkpoint = ""
-calc = MetatomicCalculator("pet-oam-1epoch-55.pt", device=device)
+
+# get it with `mtt export https://huggingface.co/lab-cosmo/upet/resolve/main/models/pet-oam-xl-v1.0.0.ckpt`
+calc = MetatomicCalculator("pet-oam-xl-v1.0.0.pt", device=device)
 calc = SymmetrizedCalculator(calc, batch_size=16, include_inversion=False)
 
 print(f"Read data from {data_path}")
