@@ -1,8 +1,8 @@
-from matbench_discovery.phonons.thermal_conductivity import calculate_conductivity
-from ase.calculators.calculator import Calculator
-from ase.atoms import Atoms
-import numpy as np
 from typing import Any
+
+import numpy as np
+from ase.atoms import Atoms
+from ase.calculators.calculator import Calculator
 from phono3py.api_phono3py import Phono3py
 from phonopy.structure.atoms import PhonopyAtoms
 from tqdm.auto import tqdm
@@ -94,7 +94,7 @@ def calculate_fc2_set(
             )
             for supercell in batch_displacements
         ]
-        res = calculator.compute_energy(batch_atoms, True)
+        res = calculator.compute_energy(batch_atoms, compute_forces_and_stresses=True)
         f = res["forces"]
         forces.extend(f)
 
@@ -142,7 +142,7 @@ def calculate_fc3_set(
             )
             for supercell in batch_displacements
         ]
-        res = calculator.compute_energy(batch_atoms, True)
+        res = calculator.compute_energy(batch_atoms, compute_forces_and_stresses=True)
         f = res["forces"]
         forces.extend(f)
 
@@ -182,7 +182,7 @@ def get_fc2_and_freqs(
     fc2_set = calculate_fc2_set(
         ph3,
         calculator,
-        pbar_kwargs={"leave": False} | ({"disable": True} or {}),
+        pbar_kwargs={"leave": False} | ({"disable": True}),
         batch_size=batch_size,
     )
 

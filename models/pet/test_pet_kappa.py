@@ -7,8 +7,8 @@ Templated from https://github.com/janosh/matbench-discovery/blob/main/models/neq
 
 import json
 import os
-import warnings
 import traceback
+import warnings
 from datetime import datetime
 from importlib.metadata import version
 from typing import Any, Literal
@@ -16,18 +16,16 @@ from typing import Any, Literal
 import ase.io
 import pandas as pd
 import torch
+from calc_kappa import calc_kappa_for_structure
+from metatomic.torch import load_atomistic_model
+from metatomic.torch.ase_calculator import MetatomicCalculator, SymmetrizedCalculator
 from pymatviz.enums import Key
 from tqdm import tqdm
 
 from matbench_discovery import today
 from matbench_discovery.data import DataFiles
-from matbench_discovery.phonons import KappaCalcParams
 from matbench_discovery.metrics.phonons import calc_kappa_metrics_from_dfs
-from calc_kappa import calc_kappa_for_structure
-
-from metatomic.torch.ase_calculator import MetatomicCalculator
-from metatomic.torch.ase_calculator import SymmetrizedCalculator
-from metatomic.torch import load_atomistic_model
+from matbench_discovery.phonons import KappaCalcParams
 
 # Model configuration
 module_dir = os.path.dirname(__file__)

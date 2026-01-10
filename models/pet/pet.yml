@@ -17,12 +17,15 @@ authors:
     affiliation: COSMO, EPFL
     email: michele.ceriotti@epfl.ch
 repo: https://github.com/lab-cosmo/pet-mad
-preprint: https://arxiv.org/abs/2503.14118
 checkpoint_url: https://huggingface.co/lab-cosmo/pet-mad/resolve/b0234f3/models/pet-mad-latest.ckpt
+url: https://nequip.readthedocs.io/en/latest/
+doi: https://doi.org/10.1038/s41467-025-65662-7
+paper: https://www.nature.com/articles/s41467-025-65662-7
+pr_url:
 
 openness: OSOD
-train_task: S2EF
-test_task: S2EF
+train_task: S2EFS
+test_task: IS2RE-SR
 targets: EFS_G
 model_type: Transformer
 model_params: 730_000_000
@@ -30,6 +33,7 @@ trained_for_benchmark: true
 n_estimators: 1
 
 license:
+  checkpoint: BSD-3-Clause
   code: BSD-3-Clause
   code_url: https://github.com/metatensor/metatrain/blob/main/LICENSE
 
@@ -49,7 +53,7 @@ training_cost:
   Nvidia H100 GPUs: {amount: 512, hours: 40}
 
 requirements:
-  metatrain: 2026.1
+  metatrain: '2026.1'
 
 training_set: [OMat24, sAlex, MPtrj]
 
@@ -62,6 +66,7 @@ metrics:
       κ_SRE: 0.0603
   geo_opt:
     pred_file: models/pet/pet-wbm-IS2RE-FIRE.jsonl.gz
+    pred_file_url: https://figshare.com/files/31043347
     struct_col: pet_structure
     symprec=1e-2:
       rmsd: 0.0596 # unitless

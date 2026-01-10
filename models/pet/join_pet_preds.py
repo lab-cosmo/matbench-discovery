@@ -1,6 +1,4 @@
-import argparse  # Import the argparse module
 import os
-import re
 from glob import glob
 
 import pandas as pd
@@ -42,8 +40,6 @@ def process_results(path: str) -> None:
 
     glob_pattern = f"{path}/*-*.json.gz"
     file_paths = glob(glob_pattern)
-
-    out_dir = file_paths[0].rsplit("/", 1)[0]
 
     print(f"Found {len(file_paths):,} files for {glob_pattern = }")
 

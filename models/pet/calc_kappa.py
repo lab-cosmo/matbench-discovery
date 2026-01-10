@@ -1,7 +1,6 @@
 """Shared kappa calculation function for different ML potential models."""
 
 import os
-import shutil
 import traceback
 import warnings
 from collections.abc import Callable
@@ -10,6 +9,9 @@ from typing import TYPE_CHECKING, Any
 
 import ase.optimize
 import ase.optimize.sciopt
+
+# from matbench_discovery.phonons import thermal_conductivity as ltc
+import thermal_conductivity as ltc
 from ase import Atoms
 from ase.calculators.calculator import Calculator
 from ase.constraints import FixSymmetry
@@ -18,10 +20,6 @@ from moyopy import MoyoDataset
 from moyopy.interface import MoyoAdapter
 from pymatgen.core.structure import Structure
 from pymatviz.enums import Key
-
-# from matbench_discovery.phonons import thermal_conductivity as ltc
-
-import thermal_conductivity as ltc
 
 if TYPE_CHECKING:
     from ase.optimize.optimize import Optimizer

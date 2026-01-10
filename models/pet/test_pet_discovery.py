@@ -17,6 +17,7 @@ from ase import Atoms
 from ase.filters import FrechetCellFilter
 from ase.optimize import FIRE, LBFGS
 from ase.optimize.optimize import Optimizer
+from metatomic.torch.ase_calculator import MetatomicCalculator, SymmetrizedCalculator
 from pymatgen.core.trajectory import Trajectory
 from pymatgen.io.ase import AseAtomsAdaptor
 from pymatviz.enums import Key
@@ -25,9 +26,6 @@ from tqdm import tqdm
 from matbench_discovery import timestamp
 from matbench_discovery.data import as_dict_handler, ase_atoms_from_zip
 from matbench_discovery.enums import DataFiles, Task
-
-from metatomic.torch.ase_calculator import MetatomicCalculator, SymmetrizedCalculator
-
 
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 
@@ -96,9 +94,7 @@ elif slurm_array_task_count > 1:
 
 run_params = {
     "data_path": data_path,
-    "versions": {
-        dep: version(dep) for dep in ("numpy", "ase")
-    },
+    "versions": {dep: version(dep) for dep in ("numpy", "ase")},
     "checkpoint": checkpoint,
     Key.task_type: task_type,
     "n_structures": len(atoms_list),
